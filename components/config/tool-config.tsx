@@ -734,7 +734,7 @@ function OutputColumn({
 
         <Field label="Tipo de salida">
           <Segmented
-            options={["Archivo", ".zip", "Tabla", "Webhook"]}
+            options={["Archivo", ".zip", "JSON/Tabla", "Texto"]}
             value={config.outputType}
             onChange={(v) => onChange({ outputType: v })}
           />

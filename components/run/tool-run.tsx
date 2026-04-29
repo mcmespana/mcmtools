@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import type { Tool, ToolStats } from "@/lib/types"
 import { Bento, Kicker } from "@/components/bento"
 import { Icon } from "@/components/icon"
+import { useAdmin } from "../admin-context"
 
 type Detected = {
   sigla: string
@@ -29,9 +30,13 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
   const [phase, setPhase] = useState<Phase>("idle")
   const [activeStep, setActiveStep] = useState(-1)
   const [detected, setDetected] = useState<Detected[]>([])
+  const [runOutput, setRunOutput] = useState<string | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+  const [droppedFile, setDroppedFile] = useState<File | null>(null)
+  const { isAdmin } = useAdmin()
   const dragCounter = useRef(0)
   const startedAt = useRef<number>(0)
-  const recordedRef = useRef(false)
 
   const userVarsInit: Record<string, string> = {}
   for (const v of tool.config.userVars) userVarsInit[v.key] = v.default
@@ -39,70 +44,73 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
 
   const pipelineSrc = tool.config.steps.length > 0
     ? tool.config.steps.map((s) => ({
-        title: s.title,
-        icon: s.icon,
-        idle: "esperando…",
-        doing: s.summary || "ejecutando…",
-        done: "listo",
-        duration: "0.5s",
-      }))
+      title: s.title,
+      icon: s.icon,
+      idle: "esperando…",
+      doing: s.summary || "ejecutando…",
+      done: "listo",
+      duration: "0.5s",
+    }))
     : FALLBACK_PIPELINE
 
+  // Animate pipeline steps while real execution happens in the background
   useEffect(() => {
     if (phase !== "processing") return
-    recordedRef.current = false
     startedAt.current = performance.now()
-
-    const dictionary = tool.config.dictionary
-    const seq: { delay: number; action: () => void }[] = []
     const stepCount = pipelineSrc.length
-
+    const seq: { delay: number; action: () => void }[] = []
     pipelineSrc.forEach((_, i) => {
-      seq.push({
-        delay: 500 + i * 600,
-        action: () => {
-          setActiveStep(i)
-          if (i === Math.min(2, stepCount - 1) && dictionary.length > 0) {
-            setDetected(
-              dictionary.slice(0, 4).map((d, idx) => ({
-                sigla: d.sigla,
-                name: d.fullName,
-                dni: d.dni,
-                page: idx + 1,
-                color: d.color,
-              })),
-            )
-          } else if (i === Math.min(2, stepCount - 1) && dictionary.length === 0) {
-            setDetected([
-              { sigla: "AA1", name: "Resultado 1", dni: "—", page: 1, color: "#C7B8FF" },
-              { sigla: "AA2", name: "Resultado 2", dni: "—", page: 2, color: "#A8FF60" },
-            ])
-          }
-        },
-      })
+      seq.push({ delay: 500 + i * 600, action: () => setActiveStep(i) })
     })
-    seq.push({
-      delay: 500 + stepCount * 600 + 200,
-      action: () => {
-        setPhase("preview")
-        if (!recordedRef.current) {
-          recordedRef.current = true
-          const duration = Math.round(performance.now() - startedAt.current)
-          fetch(`/api/tools/${tool.id}/runs`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              durationMs: duration,
-              detected: dictionary.length > 0 ? Math.min(dictionary.length, 4) : 2,
-              errors: 0,
-            }),
-          }).catch(() => {})
-        }
-      },
-    })
-
     const timers = seq.map((s) => setTimeout(s.action, s.delay))
     return () => timers.forEach(clearTimeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
+  // Real execution: send file + vars to backend
+  useEffect(() => {
+    if (phase !== "processing") return
+    setRunError(null)
+    setRunOutput(null)
+    setDownloadUrl(null)
+
+    const execute = async () => {
+      try {
+        const formData = new FormData()
+        if (droppedFile) formData.append("file", droppedFile)
+        formData.append("userVars", JSON.stringify(vars))
+
+        const res = await fetch(`/api/tools/${tool.id}/run`, {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: "Error desconocido" }))
+          setRunError(errData.error || "Error en la ejecución")
+          setPhase("preview")
+          return
+        }
+
+        const contentType = res.headers.get("content-type") || ""
+        if (contentType.includes("application/zip") || contentType.includes("application/octet-stream")) {
+          const blob = await res.blob()
+          const url = URL.createObjectURL(blob)
+          setDownloadUrl(url)
+        } else {
+          const data = await res.json()
+          if (data.stdout) setRunOutput(data.stdout.trim())
+          if (data.error) setRunError(data.error)
+        }
+
+        setPhase("preview")
+      } catch (e: any) {
+        setRunError(e.message || "Error de red")
+        setPhase("preview")
+      }
+    }
+
+    execute()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, tool.id])
 
@@ -111,6 +119,8 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
     dragCounter.current = 0
     setDetected([])
     setActiveStep(-1)
+    const file = e.dataTransfer.files?.[0] ?? null
+    setDroppedFile(file)
     setPhase("processing")
   }
   const handleDragEnter = (e: React.DragEvent) => {
@@ -133,6 +143,11 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
     setPhase("idle")
     setActiveStep(-1)
     setDetected([])
+    setDroppedFile(null)
+    setRunOutput(null)
+    setRunError(null)
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl)
+    setDownloadUrl(null)
   }
 
   const month = vars.mes || "Marzo"
@@ -173,9 +188,11 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
               <Icon name="x" size={13} /> Reiniciar
             </button>
           )}
-          <button className="btn" onClick={() => router.push(`/tools/${tool.id}/config`)}>
-            <Icon name="settings" size={13} /> Configurar
-          </button>
+          {isAdmin && (
+            <button className="btn" onClick={() => router.push(`/tools/${tool.id}/config`)}>
+              <Icon name="settings" size={13} /> Configurar
+            </button>
+          )}
         </div>
       </div>
 
@@ -202,7 +219,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
               {phase === "idle" && <DropIdle tool={tool} vars={vars} setVars={setVars} />}
               {phase === "dropping" && <DropActive />}
               {phase === "processing" && <DropProcessing />}
-              {phase === "preview" && <DropPreview detected={detected} month={month} year={year} />}
+              {phase === "preview" && <DropPreview detected={detected} month={month} year={year} runOutput={runOutput} runError={runError} />}
             </Bento>
           </div>
 
@@ -315,31 +332,78 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
 
           {phase === "preview" && (
             <Bento
-              style={{ padding: 22, background: "linear-gradient(160deg, var(--accent-soft) 0%, var(--surface) 60%)" }}
+              style={{ padding: 22, background: runError ? "rgba(255,107,74,0.06)" : "linear-gradient(160deg, var(--accent-soft) 0%, var(--surface) 60%)" }}
             >
-              <div className="row" style={{ gap: 10, marginBottom: 12 }}>
-                <Icon name="check" size={16} style={{ color: "var(--accent)" }} />
-                <div className="t-display" style={{ fontSize: 18, fontWeight: 600 }}>
-                  Listo para descargar
-                </div>
-              </div>
-              <p className="italic-serif muted" style={{ fontSize: 13, marginBottom: 16 }}>
-                {detected.length} archivos generados, nombrados según tu plantilla. Revisa la previsualización antes de
-                confirmar.
-              </p>
+              {runError ? (
+                <>
+                  <div className="row" style={{ gap: 10, marginBottom: 12 }}>
+                    <Icon name="x" size={16} style={{ color: "#FF6B4A" }} />
+                    <div className="t-display" style={{ fontSize: 18, fontWeight: 600, color: "#FF6B4A" }}>
+                      Error en la ejecución
+                    </div>
+                  </div>
+                  <pre style={{
+                    background: "#0A0A0A",
+                    color: "#FF6B4A",
+                    padding: 12,
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontFamily: "JetBrains Mono, monospace",
+                    overflowX: "auto",
+                    marginBottom: 12,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-all",
+                  }}>
+                    {runError}
+                  </pre>
+                </>
+              ) : (
+                <>
+                  <div className="row" style={{ gap: 10, marginBottom: 12 }}>
+                    <Icon name="check" size={16} style={{ color: "var(--accent)" }} />
+                    <div className="t-display" style={{ fontSize: 18, fontWeight: 600 }}>
+                      {downloadUrl ? "Listo para descargar" : "Ejecución completada"}
+                    </div>
+                  </div>
+                  {runOutput && (
+                    <pre style={{
+                      background: "var(--surface-2)",
+                      color: "var(--text)",
+                      padding: 12,
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontFamily: "JetBrains Mono, monospace",
+                      marginBottom: 12,
+                      overflowX: "auto",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-all",
+                    }}>
+                      {runOutput}
+                    </pre>
+                  )}
+                </>
+              )}
               <div className="row" style={{ gap: 8 }}>
-                <button className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }}>
-                  <Icon name="download" size={13} /> Descargar .zip
-                </button>
+                {downloadUrl && (
+                  <a
+                    href={downloadUrl}
+                    download={`mcmtools_${tool.id}_${Date.now()}.zip`}
+                    className="btn btn-primary"
+                    style={{ flex: 1, justifyContent: "center", textDecoration: "none" }}
+                  >
+                    <Icon name="download" size={13} /> Descargar .zip
+                  </a>
+                )}
                 <button className="btn" onClick={reset}>
-                  <Icon name="eye" size={13} />
+                  <Icon name="x" size={13} /> Reiniciar
                 </button>
               </div>
               <div className="t-mono muted-3" style={{ fontSize: 10, marginTop: 14, textAlign: "center" }}>
-                {`run guardado · histórico: ${stats.runs + 1} ejecuciones`}
+                {`histórico: ${stats.runs + 1} ejecuciones`}
               </div>
             </Bento>
           )}
+
 
           <Bento style={{ padding: 22 }}>
             <div className="t-kicker" style={{ marginBottom: 12 }}>

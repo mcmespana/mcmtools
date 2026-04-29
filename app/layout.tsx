@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { TopBar } from "@/components/top-bar"
+import { AdminProvider } from "@/components/admin-context"
 
 export const metadata: Metadata = {
   title: "MCM Tools Engine",
@@ -36,9 +37,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
       <body className="antialiased">
-        <TopBar />
-        {children}
-        {process.env.NODE_ENV === "production" && <Analytics />}
+        <AdminProvider>
+          <TopBar />
+          {children}
+          {process.env.NODE_ENV === "production" && <Analytics />}
+        </AdminProvider>
       </body>
     </html>
   )

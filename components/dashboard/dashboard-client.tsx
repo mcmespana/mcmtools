@@ -7,11 +7,12 @@ import { Bento, Kicker } from "@/components/bento"
 import { Icon } from "@/components/icon"
 import { ToolCard } from "./tool-card"
 import { ConfirmModal } from "./confirm-modal"
+import { useAdmin } from "../admin-context"
 
 export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
   const router = useRouter()
   const [tools, setTools] = useState<Tool[]>(initialTools)
-  const [adminMode, setAdminMode] = useState(false)
+  const { isAdmin: adminMode } = useAdmin()
   const [confirmDelete, setConfirmDelete] = useState<Tool | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -96,7 +97,6 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
         }}
       >
         <div style={{ minWidth: 0, flex: "1 1 480px" }}>
-          <Kicker style={{ marginBottom: 14 }}>Workspace · MCM Tools</Kicker>
           <h1
             className="t-display"
             style={{ fontSize: "clamp(48px, 7vw, 84px)", margin: 0, lineHeight: 0.92, color: "var(--text)" }}
@@ -128,14 +128,6 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
             {tools.length} TOOLS · {tools.filter((t) => t.status === "active").length} ACTIVE
           </span>
           <div className="row" style={{ gap: 10 }}>
-            <button
-              className={"btn " + (adminMode ? "btn-accent" : "")}
-              onClick={() => setAdminMode(!adminMode)}
-              style={{ padding: "10px 16px", fontSize: 13 }}
-            >
-              <Icon name={adminMode ? "check" : "settings"} size={14} />
-              {adminMode ? "Salir de admin" : "Modo admin"}
-            </button>
             <button
               className="btn btn-primary"
               onClick={() => router.push("/tools/new")}
@@ -231,27 +223,6 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
             </div>
           </div>
         </Bento>
-      </div>
-
-      {/* Footer */}
-      <div
-        style={{
-          marginTop: 60,
-          paddingTop: 24,
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          justifyContent: "space-between",
-          color: "var(--text-3)",
-          fontSize: 12,
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <span className="t-mono">MCM TOOLS ENGINE — v0.4.2</span>
-        <span className="italic-serif" style={{ fontSize: 14 }}>
-          {"\u201CUna herramienta por problema. No al revés.\u201D"}
-        </span>
-        <span className="t-mono">NEON · POSTGRES</span>
       </div>
 
       {confirmDelete && (

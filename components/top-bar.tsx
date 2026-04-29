@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Icon } from "./icon"
+import { useAdmin } from "./admin-context"
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
@@ -78,13 +79,7 @@ export function TopBar() {
             M
           </div>
           <span className="t-display" style={{ fontSize: 18, fontWeight: 700 }}>
-            MCM Tools
-          </span>
-          <span
-            className="italic-serif muted-2"
-            style={{ fontSize: 16, marginLeft: -2 }}
-          >
-            engine
+            MCM
           </span>
         </Link>
         {crumbs && crumbs.length > 0 && (
@@ -128,23 +123,68 @@ export function TopBar() {
           </span>
         </div>
         <ThemeToggle />
+        <AdminMenu />
+      </div>
+    </div>
+  )
+}
+
+function AdminMenu() {
+  const { isAdmin, login, logout } = useAdmin()
+  const [showAdminLogin, setShowAdminLogin] = useState(false)
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setShowAdminLogin(!showAdminLogin)}
+        className="btn btn-ghost"
+        style={{ padding: "8px 10px", color: isAdmin ? "var(--accent)" : "var(--text-3)" }}
+      >
+        <Icon name={isAdmin ? "unlock" : "lock"} size={16} />
+      </button>
+
+      {showAdminLogin && (
         <div
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 999,
-            background: "linear-gradient(135deg, var(--accent), oklch(0.7 0.14 320))",
-            display: "grid",
-            placeItems: "center",
-            fontFamily: "Syne",
-            fontWeight: 700,
-            fontSize: 13,
-            color: "#0A0A0A",
+            position: "absolute",
+            right: 0,
+            top: "calc(100% + 8px)",
+            background: "var(--surface)",
+            border: "1px solid var(--border-strong)",
+            padding: 16,
+            borderRadius: 16,
+            width: 220,
+            zIndex: 50,
+            boxShadow: "0 20px 40px -10px rgba(0,0,0,0.5)"
           }}
         >
-          MC
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+            {isAdmin ? "Opciones de Admin" : "Acceso Admin"}
+          </div>
+
+          {!isAdmin ? (
+            <div className="col" style={{ gap: 8 }}>
+              <input className="input" placeholder="Usuario" style={{ fontSize: 13, padding: "8px 12px" }} />
+              <input className="input" type="password" placeholder="Contraseña" style={{ fontSize: 13, padding: "8px 12px" }} />
+              <button 
+                className="btn btn-primary" 
+                style={{ width: "100%", justifyContent: "center", marginTop: 4 }}
+                onClick={() => { login(); setShowAdminLogin(false) }}
+              >
+                Entrar
+              </button>
+            </div>
+          ) : (
+            <button 
+              className="btn" 
+              style={{ width: "100%", justifyContent: "center", color: "#FF6B4A" }}
+              onClick={() => { logout(); setShowAdminLogin(false) }}
+            >
+              Cerrar sesión
+            </button>
+          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }

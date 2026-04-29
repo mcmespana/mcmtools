@@ -167,19 +167,6 @@ export function ToolCard({
             </span>
           </div>
           <div className="row" style={{ gap: 6 }}>
-            {!adminMode && (
-              <button
-                className="btn btn-ghost"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onConfigure()
-                }}
-                style={{ padding: "6px 10px", fontSize: 12 }}
-              >
-                <Icon name="settings" size={13} />
-                Configurar
-              </button>
-            )}
             {adminMode && (
               <div style={{ position: "relative" }}>
                 <button
