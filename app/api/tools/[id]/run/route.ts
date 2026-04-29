@@ -71,8 +71,16 @@ export async function POST(req: Request, { params }: RouteCtx) {
       })
 
       if (!pyRes.ok) {
-        const errData = await pyRes.json().catch(() => ({ message: "Error en Python" }))
-        result = { error: errData.message || errData.traceback || "Error en la ejecución" }
+        const rawText = await pyRes.text()
+        let errMsg = `Error en Python (${pyRes.status})`
+        try {
+          const errData = JSON.parse(rawText)
+          errMsg = errData.traceback || errData.message || errMsg
+        } catch {
+          errMsg = rawText.slice(0, 500) || errMsg
+        }
+        console.error("[mcm] Python endpoint error:", errMsg)
+        result = { error: errMsg }
       } else {
         const contentType = pyRes.headers.get("content-type") || ""
         if (contentType.includes("application/octet-stream")) {
