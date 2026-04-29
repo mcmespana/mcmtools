@@ -4,13 +4,13 @@ import { createContext, useContext, useState, useEffect } from "react"
 
 type AdminContextType = {
   isAdmin: boolean
-  login: () => void
+  login: (user: string, pass: string) => boolean
   logout: () => void
 }
 
 const AdminContext = createContext<AdminContextType>({
   isAdmin: false,
-  login: () => {},
+  login: () => false,
   logout: () => {},
 })
 
@@ -21,9 +21,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setIsAdmin(localStorage.getItem("mcm-admin") === "1")
   }, [])
 
-  const login = () => {
-    localStorage.setItem("mcm-admin", "1")
-    setIsAdmin(true)
+  const login = (user: string, pass: string): boolean => {
+    if (user === "admin" && pass === "admin") {
+      localStorage.setItem("mcm-admin", "1")
+      setIsAdmin(true)
+      return true
+    }
+    return false
   }
 
   const logout = () => {

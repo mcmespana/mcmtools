@@ -1,150 +1,239 @@
 import { NextResponse } from "next/server"
 import { getTool, recordRun } from "@/lib/db"
-import { runPythonScript, cleanupRun } from "@/lib/python-runner"
-import fs from "fs/promises"
-import path from "path"
-import os from "os"
-import { exec } from "child_process"
-import { promisify } from "util"
 
-const execAsync = promisify(exec)
+type RouteCtx = { params: Promise<{ id: string }> }
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, { params }: RouteCtx) {
   const startTime = Date.now()
-  let tmpInputDir: string | null = null
 
   try {
-    const { id } = params
+    const { id } = await params
     const tool = await getTool(id)
 
     if (!tool) {
       return NextResponse.json({ error: "Tool not found" }, { status: 404 })
     }
 
-    // Parse incoming FormData (file + userVars JSON)
+    // Parse incoming FormData
     const formData = await req.formData()
     const userVarsRaw = formData.get("userVars")
     const userVars: Record<string, string> = userVarsRaw
       ? JSON.parse(userVarsRaw as string)
       : {}
 
-    // Save the uploaded file to a temp location if present
-    let inputFilePath = ""
-    const uploadedFile = formData.get("file") as File | null
-    if (uploadedFile && uploadedFile.size > 0) {
-      tmpInputDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcm_input_"))
-      const inputPath = path.join(tmpInputDir, uploadedFile.name)
-      const arrayBuffer = await uploadedFile.arrayBuffer()
-      await fs.writeFile(inputPath, Buffer.from(arrayBuffer))
-      inputFilePath = inputPath
+    // Merge user vars with system vars
+    const systemVars: Record<string, string> = {}
+    for (const sv of tool.config.systemVars || []) {
+      systemVars[sv.key] = sv.value
+    }
+    const allVariables = { ...systemVars, ...userVars }
+
+    // Read uploaded files
+    const uploadedFiles = formData.getAll("files") as File[]
+    const legacyFile = formData.get("file") as File | null
+    if (legacyFile && uploadedFiles.length === 0) uploadedFiles.push(legacyFile)
+    
+    const inputFiles: { name: string; bytes: ArrayBuffer }[] = []
+    for (const f of uploadedFiles) {
+      if (f.size > 0) {
+        inputFiles.push({ name: f.name || "archivo.bin", bytes: await f.arrayBuffer() })
+      }
     }
 
-    let combinedStdout = ""
-    let finalOutputDir = ""
-    let hasErrors = false
-    let lastStderr = ""
+    // Get the Python code from tool config
+    const code = tool.config.code || ""
 
-    // Execute each step that has Python code
-    for (const step of tool.config.steps) {
-      if (step.code && step.code.trim() !== "") {
-        const appletVars = (step.variables || []).reduce(
-          (acc: Record<string, string>, v) => ({ ...acc, [v.key]: v.value }),
-          {}
-        )
+    if (!code.trim()) {
+      return NextResponse.json({ error: "Esta herramienta no tiene código configurado" }, { status: 400 })
+    }
 
-        const result = await runPythonScript({
-          code: step.code,
-          userVars,
-          appletVars,
-          inputFilePath,
-        })
+    // Try Vercel Python endpoint first (production), fall back to local execution
+    const isVercel = process.env.VERCEL === "1" || process.env.VERCEL_ENV !== undefined
 
-        combinedStdout += result.stdout
-        finalOutputDir = result.outputDir
+    let result: { output?: Uint8Array; filename?: string; stdout?: string; error?: string }
 
-        if (result.stderr && result.stderr.trim()) {
-          console.error(`[mcm] Step [${step.id}] stderr:`, result.stderr)
-          lastStderr = result.stderr
-          hasErrors = true
+    if (isVercel) {
+      // In Vercel: call the Python serverless function at /api/run
+      const pyFormData = new FormData()
+      pyFormData.append("code", code)
+      pyFormData.append("variables", JSON.stringify(allVariables))
+      uploadedFiles.forEach(f => {
+        if (f.size > 0) pyFormData.append("files", f)
+      })
+
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000"
+
+      const pyRes = await fetch(`${baseUrl}/api/run`, {
+        method: "POST",
+        body: pyFormData,
+      })
+
+      if (!pyRes.ok) {
+        const errData = await pyRes.json().catch(() => ({ message: "Error en Python" }))
+        result = { error: errData.message || errData.traceback || "Error en la ejecución" }
+      } else {
+        const contentType = pyRes.headers.get("content-type") || ""
+        if (contentType.includes("application/octet-stream")) {
+          const buffer = await pyRes.arrayBuffer()
+          const disposition = pyRes.headers.get("content-disposition") || ""
+          const match = disposition.match(/filename="?([^"]+)"?/)
+          result = {
+            output: new Uint8Array(buffer),
+            filename: match?.[1] || "resultado.bin",
+          }
+        } else {
+          const data = await pyRes.json()
+          result = { stdout: data.message || "Ejecutado correctamente" }
         }
       }
+    } else {
+      // Local development: use child_process
+      result = await executeLocally(code, allVariables, inputFiles)
     }
 
     // Record stats
     const duration = Date.now() - startTime
-    await recordRun(tool.id, duration, 1, hasErrors ? 1 : 0)
+    await recordRun(tool.id, duration, 1, result.error ? 1 : 0)
 
-    // Clean up input temp dir
-    if (tmpInputDir) {
-      await fs.rm(tmpInputDir, { recursive: true, force: true }).catch(() => {})
+    // Return result
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 500 })
     }
 
-    // If there were errors in any step, return error JSON
-    if (hasErrors) {
-      if (finalOutputDir) await cleanupRun(finalOutputDir)
-      return NextResponse.json(
-        { error: lastStderr || "Error durante la ejecución del script" },
-        { status: 500 }
-      )
-    }
-
-    // Serve response based on outputType
-    const outputType = tool.config.outputType
-
-    if (outputType === "Texto" || outputType === "JSON/Tabla") {
-      // Return plain stdout
-      if (finalOutputDir) await cleanupRun(finalOutputDir)
-      return NextResponse.json({ success: true, stdout: combinedStdout.trim(), durationMs: duration })
-    }
-
-    // For Archivo / .zip: read files from output dir and serve as zip
-    if (finalOutputDir) {
-      let files: string[] = []
-      try {
-        files = await fs.readdir(finalOutputDir)
-      } catch {}
-
-      if (files.length === 0) {
-        await cleanupRun(finalOutputDir)
-        return NextResponse.json({ success: true, stdout: combinedStdout.trim(), durationMs: duration })
+    if (result.output) {
+      const fname = result.filename || "resultado.bin"
+      const ext = fname.split(".").pop()?.toLowerCase() || ""
+      const mimeMap: Record<string, string> = {
+        zip: "application/zip",
+        pdf: "application/pdf",
+        csv: "text/csv",
+        json: "application/json",
+        txt: "text/plain",
       }
-
-      if (files.length === 1 && outputType === "Archivo") {
-        // Return single file directly
-        const filePath = path.join(finalOutputDir, files[0])
-        const fileBuffer = await fs.readFile(filePath)
-        await cleanupRun(finalOutputDir)
-        return new Response(fileBuffer, {
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "Content-Disposition": `attachment; filename="${files[0]}"`,
-          },
-        })
-      }
-
-      // Multiple files or .zip output type: compress and return
-      const zipPath = path.join(os.tmpdir(), `mcm_out_${Date.now()}.zip`)
-      await execAsync(`cd "${finalOutputDir}" && zip -r "${zipPath}" .`)
-      const zipBuffer = await fs.readFile(zipPath)
-      await fs.rm(zipPath, { force: true }).catch(() => {})
-      await cleanupRun(finalOutputDir)
-
-      return new Response(zipBuffer, {
+      const mime = mimeMap[ext] || "application/octet-stream"
+      
+      return new Response(Buffer.from(result.output), {
         headers: {
-          "Content-Type": "application/zip",
-          "Content-Disposition": `attachment; filename="mcmtools_${id}_output.zip"`,
+          "Content-Type": mime,
+          "Content-Disposition": `attachment; filename="${fname}"`,
+          "Access-Control-Expose-Headers": "Content-Disposition",
         },
       })
     }
 
-    return NextResponse.json({ success: true, stdout: combinedStdout.trim(), durationMs: duration })
+    return NextResponse.json({
+      success: true,
+      stdout: result.stdout || "",
+      durationMs: duration,
+    })
   } catch (error: any) {
-    if (tmpInputDir) {
-      await fs.rm(tmpInputDir, { recursive: true, force: true }).catch(() => {})
-    }
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+/**
+ * Local execution via child_process (development only).
+ * Writes a temp Python script, executes it, and reads output.
+ */
+async function executeLocally(
+  code: string,
+  variables: Record<string, string>,
+  inputFiles: { name: string; bytes: ArrayBuffer }[]
+): Promise<{ output?: Uint8Array; filename?: string; stdout?: string; error?: string }> {
+  const { exec } = await import("child_process")
+  const { promisify } = await import("util")
+  const fs = await import("fs/promises")
+  const path = await import("path")
+  const os = await import("os")
+
+  const execAsync = promisify(exec)
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcm_run_"))
+  const outputDir = path.join(tmpDir, "output")
+  const inputDir = path.join(tmpDir, "input")
+  await fs.mkdir(outputDir, { recursive: true })
+  await fs.mkdir(inputDir, { recursive: true })
+
+  try {
+    // Save input files
+    for (const f of inputFiles) {
+      await fs.writeFile(path.join(inputDir, f.name), Buffer.from(f.bytes))
+    }
+
+    // Build the Python script with injected context
+    const injectedCode = `
+import json, io, os, sys
+
+# --- INJECTED BY MCM ENGINE ---
+variables = json.loads('''${JSON.stringify(variables).replace(/'/g, "\\'")}''')
+
+input_files = {}
+_input_dir = r"${inputDir}"
+if os.path.exists(_input_dir):
+    for _fname in os.listdir(_input_dir):
+        with open(os.path.join(_input_dir, _fname), "rb") as _f:
+            input_files[_fname] = _f.read()
+
+input_bytes = None
+if len(input_files) > 0:
+    input_bytes = list(input_files.values())[0]
+
+output_file = None
+output_filename = "resultado.bin"
+_mcm_output_dir = r"${outputDir}"
+os.makedirs(_mcm_output_dir, exist_ok=True)
+# --- END INJECTION ---
+
+${code}
+
+# --- SAVE OUTPUT ---
+if output_file is not None:
+    _out_path = os.path.join(_mcm_output_dir, output_filename)
+    with open(_out_path, "wb") as _f:
+        _f.write(output_file if isinstance(output_file, bytes) else bytes(output_file))
+`
+
+    const scriptPath = path.join(tmpDir, "script.py")
+    await fs.writeFile(scriptPath, injectedCode, "utf8")
+
+    const { stdout, stderr } = await execAsync(`python "${scriptPath}"`, {
+      timeout: 30000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    })
+
+    if (stderr && stderr.trim()) {
+      console.error("[mcm] Python stderr:", stderr)
+    }
+
+    // Check for output files
+    const files = await fs.readdir(outputDir).catch(() => [] as string[])
+
+    if (files.length > 0) {
+      if (files.length === 1) {
+        const filePath = path.join(outputDir, files[0])
+        const fileBuffer = await fs.readFile(filePath)
+        return { output: new Uint8Array(fileBuffer), filename: files[0] }
+      } else {
+        // Multiple files: zip them
+        const zipPath = path.join(tmpDir, "output.zip")
+        await execAsync(`cd "${outputDir}" && zip -r "${zipPath}" .`).catch(async () => {
+          // Fallback for Windows: use PowerShell
+          await execAsync(
+            `powershell -Command "Compress-Archive -Path '${outputDir}\\*' -DestinationPath '${zipPath}'"`
+          )
+        })
+        const zipBuffer = await fs.readFile(zipPath)
+        return { output: new Uint8Array(zipBuffer), filename: `mcm_output.zip` }
+      }
+    }
+
+    return { stdout: stdout.trim() }
+  } catch (error: any) {
+    return { error: error.stderr || error.message }
+  } finally {
+    // Cleanup
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
   }
 }

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react"
+import type { CSSProperties, ReactNode, DragEvent, MouseEvent } from "react"
 
 export function Bento({
   children,
@@ -8,14 +8,22 @@ export function Bento({
   onClick,
   onMouseEnter,
   onMouseLeave,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
 }: {
   children: ReactNode
   className?: string
   style?: CSSProperties
   hoverLift?: boolean
-  onClick?: (e: React.MouseEvent) => void
-  onMouseEnter?: (e: React.MouseEvent) => void
-  onMouseLeave?: (e: React.MouseEvent) => void
+  onClick?: (e: MouseEvent) => void
+  onMouseEnter?: (e: MouseEvent) => void
+  onMouseLeave?: (e: MouseEvent) => void
+  onDragOver?: (e: DragEvent) => void
+  onDragEnter?: (e: DragEvent) => void
+  onDragLeave?: (e: DragEvent) => void
+  onDrop?: (e: DragEvent) => void
 }) {
   return (
     <div
@@ -24,6 +32,10 @@ export function Bento({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <div className="grain" />
       {children}

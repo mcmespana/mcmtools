@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import type { Tool } from "@/lib/types"
-import { Bento, Kicker } from "@/components/bento"
+import { Bento } from "@/components/bento"
 import { Icon } from "@/components/icon"
 import { ToolCard } from "./tool-card"
 import { ConfirmModal } from "./confirm-modal"
@@ -12,7 +12,7 @@ import { useAdmin } from "../admin-context"
 export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
   const router = useRouter()
   const [tools, setTools] = useState<Tool[]>(initialTools)
-  const { isAdmin: adminMode } = useAdmin()
+  const { isAdmin } = useAdmin()
   const [confirmDelete, setConfirmDelete] = useState<Tool | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [, startTransition] = useTransition()
@@ -36,14 +36,14 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
       })
       refresh()
     } catch (e) {
-      console.error("[v0] rename failed", e)
+      console.error("rename failed", e)
     }
   }
 
   const handleToggleStatus = async (id: string) => {
     const target = tools.find((t) => t.id === id)
     if (!target) return
-    const next = target.status === "archived" ? "idle" : "archived"
+    const next = target.status === "archived" ? "active" : "archived"
     optimisticUpdate(id, { status: next })
     try {
       await fetch(`/api/tools/${id}`, {
@@ -53,7 +53,7 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
       })
       refresh()
     } catch (e) {
-      console.error("[v0] toggle status failed", e)
+      console.error("toggle status failed", e)
     }
   }
 
@@ -63,7 +63,7 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
       await fetch(`/api/tools/${id}`, { method: "DELETE" })
       refresh()
     } catch (e) {
-      console.error("[v0] delete failed", e)
+      console.error("delete failed", e)
     }
   }
 
@@ -79,12 +79,15 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
       }
       refresh()
     } catch (e) {
-      console.error("[v0] duplicate failed", e)
+      console.error("duplicate failed", e)
     }
   }
 
+  // Public users only see active tools
+  const visibleTools = isAdmin ? tools : tools.filter((t) => t.status === "active")
+
   return (
-    <div className="page" style={{ padding: "40px 40px 80px", maxWidth: 1480, margin: "0 auto" }}>
+    <div className="page" style={{ padding: "48px 40px 80px", maxWidth: 1400, margin: "0 auto" }}>
       {/* Hero header */}
       <div
         style={{
@@ -99,62 +102,60 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
         <div style={{ minWidth: 0, flex: "1 1 480px" }}>
           <h1
             className="t-display"
-            style={{ fontSize: "clamp(48px, 7vw, 84px)", margin: 0, lineHeight: 0.92, color: "var(--text)" }}
+            style={{ fontSize: "clamp(44px, 6vw, 72px)", margin: 0, lineHeight: 0.95 }}
           >
             Tus{" "}
-            <span className="italic-serif" style={{ fontWeight: 400 }}>
-              micro-utilidades
+            <span className="t-editorial">
+              herramientas
             </span>
-            ,
-            <br />
-            ensambladas a mano.
           </h1>
           <p
             style={{
-              maxWidth: 560,
-              marginTop: 20,
-              fontSize: 16,
-              lineHeight: 1.5,
+              maxWidth: 520,
+              marginTop: 16,
+              fontSize: 15,
+              lineHeight: 1.6,
               fontWeight: 400,
               color: "var(--text-2)",
             }}
           >
-            Cada bloque es una herramienta que tú diseñas: defines qué entra, qué hace, y qué sale. Sin código a la
-            vista. Sin terminales.
+            Cada bloque es una micro-herramienta que procesa datos por ti.
+            Define qué entra, escribe el código, y deja que haga el trabajo.
           </p>
         </div>
         <div className="col" style={{ alignItems: "flex-end", gap: 10 }}>
           <span className="t-mono" style={{ fontSize: 11, color: "var(--text-3)" }}>
-            {tools.length} TOOLS · {tools.filter((t) => t.status === "active").length} ACTIVE
+            {visibleTools.length} TOOLS · {visibleTools.filter((t) => t.status === "active").length} ACTIVE
           </span>
-          <div className="row" style={{ gap: 10 }}>
+          {isAdmin && (
             <button
               className="btn btn-primary"
               onClick={() => router.push("/tools/new")}
-              style={{ padding: "12px 20px", fontSize: 14 }}
+              style={{ padding: "12px 22px", fontSize: 14 }}
             >
               <Icon name="plus" size={15} />
-              Nueva tool
+              Nueva herramienta
             </button>
-          </div>
+          )}
         </div>
       </div>
 
-      {adminMode && (
+      {/* Admin banner */}
+      {isAdmin && (
         <div
           className="row"
           style={{
             padding: "12px 18px",
-            marginBottom: 18,
+            marginBottom: 20,
             background: "var(--accent-soft)",
-            border: "1px solid oklch(0.78 0.12 290 / 0.4)",
+            border: "1px solid oklch(0.55 0.12 290 / 0.25)",
             borderRadius: 16,
             gap: 12,
           }}
         >
           <Icon name="sparkle" size={14} style={{ color: "var(--accent)" }} />
           <div className="italic-serif" style={{ fontSize: 13, color: "var(--text)", flex: 1 }}>
-            Modo admin activo — clic en cualquier card para abrir su menú: editar, duplicar, archivar, eliminar.
+            Modo creador — puedes editar, duplicar y archivar herramientas.
           </div>
         </div>
       )}
@@ -163,21 +164,20 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(12, 1fr)",
-          gridAutoRows: "minmax(180px, auto)",
+          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
           gap: 18,
         }}
       >
-        {tools.map((t, i) => (
+        {visibleTools.map((t, i) => (
           <ToolCard
             key={t.id}
             tool={t}
             index={i}
-            adminMode={adminMode}
+            adminMode={isAdmin}
             renaming={renaming === t.id}
             onStartRename={() => setRenaming(t.id)}
             onFinishRename={(name) => handleRename(t.id, name || t.name)}
-            onOpen={() => !adminMode && router.push(`/tools/${t.id}`)}
+            onOpen={() => router.push(`/tools/${t.id}`)}
             onConfigure={() => router.push(`/tools/${t.id}/config`)}
             onDelete={() => setConfirmDelete(t)}
             onDuplicate={() => handleDuplicate(t.id)}
@@ -185,45 +185,61 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
           />
         ))}
 
-        {/* "Crear nueva tool" card */}
-        <Bento
-          hoverLift
-          onClick={() => router.push("/tools/new")}
-          style={{
-            gridColumn: "span 4",
-            gridRow: "span 1",
-            cursor: "pointer",
-            border: "1.5px dashed var(--border-strong)",
-            background: "transparent",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 180,
-          }}
-        >
-          <div className="col" style={{ alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 999,
-                border: "1.5px solid var(--border-strong)",
-                display: "grid",
-                placeItems: "center",
-                color: "var(--text)",
-              }}
-            >
-              <Icon name="plus" size={20} />
+        {/* "Create" card — admin only */}
+        {isAdmin && (
+          <Bento
+            hoverLift
+            onClick={() => router.push("/tools/new")}
+            style={{
+              cursor: "pointer",
+              border: "1.5px dashed var(--border-strong)",
+              background: "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 200,
+            }}
+          >
+            <div className="col" style={{ alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 999,
+                  border: "1.5px solid var(--border-strong)",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "var(--text)",
+                }}
+              >
+                <Icon name="plus" size={20} />
+              </div>
+              <div className="t-display" style={{ fontSize: 18 }}>
+                Nueva herramienta
+              </div>
+              <div className="italic-serif muted-2" style={{ fontSize: 13 }}>
+                3 pasos · ~2 minutos
+              </div>
             </div>
-            <div className="t-display" style={{ fontSize: 20, fontWeight: 600, color: "var(--text)" }}>
-              Nueva herramienta
-            </div>
-            <div className="italic-serif" style={{ fontSize: 14, color: "var(--text-3)" }}>
-              3 pasos · ~2 minutos
-            </div>
-          </div>
-        </Bento>
+          </Bento>
+        )}
       </div>
+
+      {/* Empty state for public users */}
+      {!isAdmin && visibleTools.length === 0 && (
+        <div style={{
+          textAlign: "center",
+          padding: "80px 20px",
+        }}>
+          <Icon name="archive" size={40} className="muted-3" style={{ marginBottom: 16 }} />
+          <div className="t-display" style={{ fontSize: 24, marginBottom: 8 }}>
+            No hay herramientas disponibles
+          </div>
+          <div className="italic-serif muted" style={{ fontSize: 15 }}>
+            El administrador aún no ha publicado ninguna herramienta.
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <ConfirmModal

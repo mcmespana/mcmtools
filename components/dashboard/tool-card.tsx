@@ -43,9 +43,8 @@ export function ToolCard({
     <Bento
       hoverLift={!adminMode}
       style={{
-        gridColumn: `span ${span.col}`,
-        gridRow: `span ${span.row}`,
         padding: 26,
+        minHeight: 200,
         cursor: adminMode ? "default" : "pointer",
         position: "relative",
         background: tool.featured
@@ -117,13 +116,13 @@ export function ToolCard({
                     onFinishRename(tool.name)
                   }
                 }}
-                style={{ fontSize: span.col >= 6 ? 28 : 22, fontWeight: 600, fontFamily: "Syne" }}
+                style={{ fontSize: 20, fontWeight: 600, fontFamily: "Syne" }}
               />
             ) : (
               <div
                 className="t-display"
                 style={{
-                  fontSize: span.col >= 6 ? 32 : 22,
+                  fontSize: 22,
                   fontWeight: 600,
                   lineHeight: 1.1,
                   color: "var(--text)",
@@ -286,7 +285,7 @@ function MenuItem({
         borderRadius: 9,
         cursor: "pointer",
         textAlign: "left",
-        color: danger ? "#FF6B4A" : "var(--text)",
+        color: danger ? "#E74C3C" : "var(--text)",
         fontFamily: "Syne",
         fontWeight: 500,
         fontSize: 13,

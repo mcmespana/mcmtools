@@ -8,12 +8,21 @@ if (!process.env.DATABASE_URL) {
 export const sql = neon(process.env.DATABASE_URL)
 
 const DEFAULT_CONFIG: ToolConfigData = {
-  trigger: "File Drop",
-  outputType: "Archivo",
   userVars: [],
-  steps: [],
-  filenameTokens: [],
-  dictionary: [],
+  systemVars: [],
+  code: `# Escribe tu lógica en Python aquí.
+# Variables disponibles:
+#   variables   → dict con las variables del usuario y del sistema
+#   input_bytes → bytes del archivo subido (o None)
+#
+# Para devolver un archivo, asigna:
+#   output_file     = bytes_del_resultado
+#   output_filename = "nombre.ext"
+
+print("¡Hola desde MCM Tools!")
+`,
+  requiresFile: true,
+  outputType: "file",
 }
 
 type ToolRow = {
@@ -41,6 +50,7 @@ type ToolRow = {
 }
 
 function rowToTool(r: ToolRow): Tool {
+  const rawConfig = r.config ?? {}
   return {
     id: r.id,
     name: r.name,
@@ -59,7 +69,13 @@ function rowToTool(r: ToolRow): Tool {
     outputType: r.output_type,
     outputIcon: r.output_icon,
     position: r.position,
-    config: { ...DEFAULT_CONFIG, ...(r.config ?? {}) },
+    config: {
+      ...DEFAULT_CONFIG,
+      ...rawConfig,
+      userVars: (rawConfig as any).userVars ?? DEFAULT_CONFIG.userVars,
+      systemVars: (rawConfig as any).systemVars ?? DEFAULT_CONFIG.systemVars,
+      code: (rawConfig as any).code ?? DEFAULT_CONFIG.code,
+    },
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   }

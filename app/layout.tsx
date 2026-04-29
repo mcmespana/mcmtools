@@ -5,23 +5,22 @@ import { TopBar } from "@/components/top-bar"
 import { AdminProvider } from "@/components/admin-context"
 
 export const metadata: Metadata = {
-  title: "MCM Tools Engine",
-  description: "Tus micro-utilidades, ensambladas a mano.",
-  generator: "v0.app",
+  title: "MCM Tools",
+  description: "Tu plataforma de micro-herramientas. Define, construye y ejecuta.",
 }
 
 export const viewport: Viewport = {
-  themeColor: "#0A0A0A",
+  themeColor: "#FFFFFF",
 }
 
 const themeBootstrap = `
 (function() {
   try {
     var t = localStorage.getItem('mcm-theme');
-    if (t !== 'light' && t !== 'dark') t = 'dark';
+    if (t !== 'light' && t !== 'dark') t = 'light';
     document.documentElement.setAttribute('data-theme', t);
   } catch (e) {
-    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'light');
   }
 })();
 `

@@ -7,10 +7,10 @@ import { Icon } from "./icon"
 import { useAdmin } from "./admin-context"
 
 function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const [theme, setTheme] = useState<"dark" | "light">("light")
 
   useEffect(() => {
-    const t = (document.documentElement.getAttribute("data-theme") as "dark" | "light") ?? "dark"
+    const t = (document.documentElement.getAttribute("data-theme") as "dark" | "light") ?? "light"
     setTheme(t)
   }, [])
 
@@ -33,7 +33,6 @@ function ThemeToggle() {
       style={{ padding: "8px 10px" }}
     >
       <Icon name={theme === "dark" ? "sun" : "moon"} size={16} />
-      <span style={{ fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase" }}>{theme}</span>
     </button>
   )
 }
@@ -81,6 +80,7 @@ export function TopBar() {
           <span className="t-display" style={{ fontSize: 18, fontWeight: 700 }}>
             MCM
           </span>
+          <span className="t-editorial"> Tools</span>
         </Link>
         {crumbs && crumbs.length > 0 && (
           <div className="row" style={{ gap: 8, color: "var(--text-3)" }}>
@@ -104,24 +104,7 @@ export function TopBar() {
           </div>
         )}
       </div>
-      <div className="row" style={{ gap: 12 }}>
-        <div
-          className="row"
-          style={{
-            padding: "6px 12px",
-            borderRadius: 999,
-            border: "1px solid var(--border)",
-            background: "var(--surface-2)",
-            fontSize: 12,
-            color: "var(--text-3)",
-            gap: 8,
-          }}
-        >
-          <Icon name="search" size={13} />
-          <span className="t-mono" style={{ fontSize: 11 }}>
-            {"\u2318K"}
-          </span>
-        </div>
+      <div className="row" style={{ gap: 8 }}>
         <ThemeToggle />
         <AdminMenu />
       </div>
@@ -131,59 +114,130 @@ export function TopBar() {
 
 function AdminMenu() {
   const { isAdmin, login, logout } = useAdmin()
-  const [showAdminLogin, setShowAdminLogin] = useState(false)
+  const [showPanel, setShowPanel] = useState(false)
+  const [user, setUser] = useState("")
+  const [pass, setPass] = useState("")
+  const [error, setError] = useState(false)
+
+  const handleLogin = () => {
+    const ok = login(user, pass)
+    if (ok) {
+      setShowPanel(false)
+      setUser("")
+      setPass("")
+      setError(false)
+    } else {
+      setError(true)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleLogin()
+  }
 
   return (
     <div style={{ position: "relative" }}>
       <button
-        onClick={() => setShowAdminLogin(!showAdminLogin)}
+        onClick={() => { setShowPanel(!showPanel); setError(false) }}
         className="btn btn-ghost"
         style={{ padding: "8px 10px", color: isAdmin ? "var(--accent)" : "var(--text-3)" }}
       >
         <Icon name={isAdmin ? "unlock" : "lock"} size={16} />
       </button>
 
-      {showAdminLogin && (
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: "calc(100% + 8px)",
-            background: "var(--surface)",
-            border: "1px solid var(--border-strong)",
-            padding: 16,
-            borderRadius: 16,
-            width: 220,
-            zIndex: 50,
-            boxShadow: "0 20px 40px -10px rgba(0,0,0,0.5)"
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
-            {isAdmin ? "Opciones de Admin" : "Acceso Admin"}
-          </div>
-
-          {!isAdmin ? (
-            <div className="col" style={{ gap: 8 }}>
-              <input className="input" placeholder="Usuario" style={{ fontSize: 13, padding: "8px 12px" }} />
-              <input className="input" type="password" placeholder="Contraseña" style={{ fontSize: 13, padding: "8px 12px" }} />
-              <button 
-                className="btn btn-primary" 
-                style={{ width: "100%", justifyContent: "center", marginTop: 4 }}
-                onClick={() => { login(); setShowAdminLogin(false) }}
-              >
-                Entrar
-              </button>
+      {showPanel && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowPanel(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 40 }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: "calc(100% + 8px)",
+              background: "var(--surface)",
+              border: "1px solid var(--border-strong)",
+              padding: 20,
+              borderRadius: 20,
+              width: 260,
+              zIndex: 50,
+              boxShadow: "0 20px 60px -12px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>
+              {isAdmin ? "Sesión activa" : "Acceso de administrador"}
             </div>
-          ) : (
-            <button 
-              className="btn" 
-              style={{ width: "100%", justifyContent: "center", color: "#FF6B4A" }}
-              onClick={() => { logout(); setShowAdminLogin(false) }}
-            >
-              Cerrar sesión
-            </button>
-          )}
-        </div>
+
+            {!isAdmin ? (
+              <div className="col" style={{ gap: 10 }}>
+                <input
+                  className="input"
+                  placeholder="Usuario"
+                  value={user}
+                  onChange={(e) => { setUser(e.target.value); setError(false) }}
+                  onKeyDown={handleKeyDown}
+                  style={{ fontSize: 13, padding: "10px 14px" }}
+                  autoFocus
+                />
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="Contraseña"
+                  value={pass}
+                  onChange={(e) => { setPass(e.target.value); setError(false) }}
+                  onKeyDown={handleKeyDown}
+                  style={{ fontSize: 13, padding: "10px 14px" }}
+                />
+                {error && (
+                  <div style={{
+                    fontSize: 12,
+                    color: "#E74C3C",
+                    fontWeight: 500,
+                    padding: "6px 0",
+                  }}>
+                    Credenciales incorrectas
+                  </div>
+                )}
+                <button
+                  className="btn btn-primary"
+                  style={{ width: "100%", justifyContent: "center", marginTop: 4, padding: "10px 16px" }}
+                  onClick={handleLogin}
+                >
+                  Entrar
+                </button>
+              </div>
+            ) : (
+              <div className="col" style={{ gap: 12 }}>
+                <div className="row" style={{ gap: 8 }}>
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    background: "var(--accent-soft)",
+                    color: "var(--accent)",
+                    display: "grid",
+                    placeItems: "center",
+                  }}>
+                    <Icon name="check" size={14} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>admin</div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>Modo creador activo</div>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-danger"
+                  style={{ width: "100%", justifyContent: "center" }}
+                  onClick={() => { logout(); setShowPanel(false) }}
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   )
