@@ -78,9 +78,8 @@ export function TopBar() {
             M
           </div>
           <span className="t-display" style={{ fontSize: 18, fontWeight: 700 }}>
-            MCM
+            MCM Tools
           </span>
-          <span className="t-editorial"> Tools</span>
         </Link>
         {crumbs && crumbs.length > 0 && (
           <div className="row" style={{ gap: 8, color: "var(--text-3)" }}>

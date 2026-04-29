@@ -140,26 +140,6 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
         </div>
       </div>
 
-      {/* Admin banner */}
-      {isAdmin && (
-        <div
-          className="row"
-          style={{
-            padding: "12px 18px",
-            marginBottom: 20,
-            background: "var(--accent-soft)",
-            border: "1px solid oklch(0.55 0.12 290 / 0.25)",
-            borderRadius: 16,
-            gap: 12,
-          }}
-        >
-          <Icon name="sparkle" size={14} style={{ color: "var(--accent)" }} />
-          <div className="italic-serif" style={{ fontSize: 13, color: "var(--text)", flex: 1 }}>
-            Modo creador — puedes editar, duplicar y archivar herramientas.
-          </div>
-        </div>
-      )}
-
       {/* Bento grid */}
       <div
         style={{

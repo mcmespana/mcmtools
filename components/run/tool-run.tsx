@@ -58,22 +58,22 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
         const match = disposition.match(/filename="?([^"]+)"?/)
         let filename = match ? match[1] : "resultado.zip"
         filename = filename.replace(/[/\\?%*:|"<>]/g, '-')
-        
+
         // Determine proper MIME type from filename
-        const mimeType = filename.endsWith(".zip") ? "application/zip" 
-          : filename.endsWith(".pdf") ? "application/pdf" 
-          : "application/octet-stream"
-        
+        const mimeType = filename.endsWith(".zip") ? "application/zip"
+          : filename.endsWith(".pdf") ? "application/pdf"
+            : "application/octet-stream"
+
         // Create blob with correct MIME type
         const blob = new Blob([arrayBuffer], { type: mimeType })
         const url = window.URL.createObjectURL(blob)
-        
+
         setDownloadName(filename)
         setDownloadUrl(url)
 
         // Auto-download using a hidden link
         triggerDownload(url, filename)
-        
+
       } else {
         const data = await res.json()
         if (data.stdout) setRunOutput(data.stdout.trim())
@@ -103,7 +103,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
     link.setAttribute("download", filename) // double-set for older browsers
     link.style.cssText = "position:fixed;left:-9999px;top:-9999px"
     document.body.appendChild(link)
-    
+
     // Use setTimeout to ensure the DOM has registered the element
     setTimeout(() => {
       link.click()
@@ -123,8 +123,9 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setDroppedFiles((prev) => [...prev, ...Array.from(e.target.files)])
+    const files = e.target.files
+    if (files) {
+      setDroppedFiles((prev) => [...prev, ...Array.from(files)])
     }
   }
 
@@ -169,11 +170,6 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
           {isAdmin && (
             <button className="btn" onClick={() => router.push(`/tools/${tool.id}/config`)} style={{ fontSize: 12 }}>
               <Icon name="settings" size={13} /> Configurar
-            </button>
-          )}
-          {phase !== "idle" && (
-            <button className="btn" onClick={reset} style={{ fontSize: 12 }}>
-              <Icon name="x" size={13} /> Reiniciar
             </button>
           )}
         </div>
@@ -440,7 +436,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                 <Icon name="zap" size={13} /> Volver a ejecutar
               </button>
               <button className="btn" onClick={reset} style={{ padding: "14px 20px" }}>
-                <Icon name="x" size={13} /> Nueva ejecución
+                <Icon name="refresh" size={13} /> Nueva ejecución
               </button>
             </div>
           </Bento>

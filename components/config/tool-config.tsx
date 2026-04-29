@@ -369,7 +369,8 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
               <div className="t-kicker" style={{ marginBottom: 10 }}>API</div>
               <div className="col" style={{ gap: 6 }}>
                 {[
-                  { k: "input_bytes", d: "Bytes del archivo" },
+                  { k: "input_bytes", d: "Bytes del primer archivo" },
+                  { k: "input_files", d: "Dict {nombre: bytes}" },
                   { k: "output_file", d: "Bytes para descargar" },
                   { k: "output_filename", d: "Nombre del archivo" },
                   { k: "variables", d: "Dict de variables" },
