@@ -65,9 +65,16 @@ export async function POST(req: Request, { params }: RouteCtx) {
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000"
 
+      const pyHeaders: Record<string, string> = {}
+      const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      if (bypassSecret) {
+        pyHeaders["x-vercel-protection-bypass"] = bypassSecret
+      }
+
       const pyRes = await fetch(`${baseUrl}/api/run`, {
         method: "POST",
         body: pyFormData,
+        headers: pyHeaders,
       })
 
       if (!pyRes.ok) {
