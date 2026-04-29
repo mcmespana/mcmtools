@@ -24,6 +24,7 @@ class handler(BaseHTTPRequestHandler):
                     environ={
                         "REQUEST_METHOD": "POST",
                         "CONTENT_TYPE": content_type,
+                        "CONTENT_LENGTH": self.headers.get("Content-Length", "-1"),
                     },
                 )
 
