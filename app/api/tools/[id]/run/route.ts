@@ -100,7 +100,7 @@ export async function POST(req: Request, { params }: RouteCtx) {
           }
         } else {
           const data = await pyRes.json()
-          result = { stdout: data.message || "Ejecutado correctamente" }
+          result = { stdout: data.stdout ?? data.message ?? "Ejecutado correctamente" }
         }
       }
     } else {
