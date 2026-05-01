@@ -183,7 +183,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
         </div>
         <div className="row" style={{ gap: 8, marginTop: 12 }}>
           {isAdmin && (
-            <button className="btn" onClick={() => router.push(`/tools/${tool.id}/config`)} style={{ fontSize: 12 }}>
+            <button className="btn" onClick={() => router.push(`/${tool.id}/config`)} style={{ fontSize: 12 }}>
               <Icon name="settings" size={13} /> Configurar
             </button>
           )}

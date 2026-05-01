@@ -190,8 +190,8 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
             renaming={renaming === t.id}
             onStartRename={() => setRenaming(t.id)}
             onFinishRename={(name) => handleRename(t.id, name || t.name)}
-            onOpen={() => router.push(`/tools/${t.id}`)}
-            onConfigure={() => router.push(`/tools/${t.id}/config`)}
+            onOpen={() => router.push(`/${t.id}`)}
+            onConfigure={() => router.push(`/${t.id}/config`)}
             onDelete={() => setConfirmDelete(t)}
             onDuplicate={() => handleDuplicate(t.id)}
             onToggleStatus={() => handleToggleStatus(t.id)}

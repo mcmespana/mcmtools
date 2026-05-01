@@ -41,10 +41,11 @@ function useCrumbs(): string[] | null {
   const pathname = usePathname()
   if (!pathname || pathname === "/") return null
   if (pathname === "/tools/new") return ["Tool Builder"]
-  const m = pathname.match(/^\/tools\/([^/]+)(\/config)?$/)
+  const m = pathname.match(/^\/([^/]+)(\/config)?$/)
   if (m) {
-    const tail = m[2] ? "Configuración" : "Ejecutar"
-    return [tail]
+    const toolName = m[1] === "tools" ? null : m[1]
+    if (m[2]) return [toolName || "Herramienta", "Configuración"]
+    return [toolName || "Herramienta"]
   }
   return null
 }

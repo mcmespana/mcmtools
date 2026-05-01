@@ -64,7 +64,7 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
 
   const runTest = async () => {
     await save()
-    router.push(`/tools/${tool.id}`)
+    router.push(`/${tool.id}`)
   }
 
   const tabs = [
