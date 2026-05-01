@@ -472,7 +472,40 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                       wordBreak: "break-all",
                       lineHeight: 1.7,
                     }}>
-                      {runOutput}
+                      {(() => {
+                        const regex = /\[COLOR:([A-Z]+)\]([\s\S]*?)\[\/COLOR\]/g;
+                        const parts = [];
+                        let lastIndex = 0;
+                        let match;
+
+                        const colors: Record<string, string> = {
+                          "RED": "#FF5F56",
+                          "GREEN": "#27C93F",
+                          "BLUE": "#3498db",
+                          "ORANGE": "#FFBD2E",
+                          "GRAY": "rgba(255,255,255,0.5)"
+                        };
+
+                        while ((match = regex.exec(runOutput)) !== null) {
+                          if (match.index > lastIndex) {
+                            parts.push(runOutput.substring(lastIndex, match.index));
+                          }
+                          const colorName = match[1];
+                          const content = match[2];
+                          parts.push(
+                            <span key={match.index} style={{ color: colors[colorName] || "inherit" }}>
+                              {content}
+                            </span>
+                          );
+                          lastIndex = regex.lastIndex;
+                        }
+                        
+                        if (lastIndex < runOutput.length) {
+                          parts.push(runOutput.substring(lastIndex));
+                        }
+                        
+                        return parts;
+                      })()}
                     </pre>
                   </div>
                 )}

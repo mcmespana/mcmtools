@@ -442,10 +442,45 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                 <Icon name="code" size={15} className="muted" />
                 <span style={{ fontSize: 14, fontWeight: 600 }}>Python</span>
               </div>
-              <span className="chip" style={{ fontSize: 10 }}>
-                <Icon name="zap" size={10} />
-                Ejecuta en servidor
-              </span>
+              <div className="row" style={{ gap: 8 }}>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 8px", fontSize: 11, background: "var(--surface-2)" }}
+                  onClick={(e) => {
+                    const txt = `Crea un script de Python para una herramienta llamada "${toolMeta.name}".
+Objetivo de la herramienta: [RELLENAR QUÉ DEBE HACER]
+
+El script se ejecuta mediante \`exec()\`. Los datos introducidos por el usuario te llegan en un diccionario de Python llamado \`variables\`.
+IMPORTANTE: Todos los valores del diccionario \`variables\` llegan como cadenas de texto (String). Si necesitas operar con números, conviértelos tú (ej: \`int(variables.get("clave") or 0)\`).
+
+Estas son las variables configuradas que recibirás:
+${config.userVars.length > 0 ? config.userVars.map(v => `- variables["${v.key}"]: ${
+  v.type === "select" 
+    ? `Llegará como texto. Solo puede contener uno de estos valores exactos: [${v.options?.map(o => `"${o}"`).join(', ')}]` 
+    : v.type === "number" 
+    ? "Llegará como texto, pero representará un número (ej: '5')." 
+    : "Llegará como texto libre."
+}`).join("\n") : "- Ninguna configurada aún."}
+${(config.systemVars || []).length > 0 ? (config.systemVars || []).map(v => `- variables["${v.key}"]: Variable interna del sistema.`).join("\n") : ""}
+
+Para mostrar el resultado, simplemente usa \`print()\`. Puedes dar color al texto imprimiendo estas etiquetas alrededor de tus frases: [COLOR:RED], [COLOR:GREEN], [COLOR:BLUE], [COLOR:ORANGE], [COLOR:GRAY] y cerrándolas con [/COLOR].
+La salida estándar se mostrará al usuario en pantalla. No uses input().${config.requiresFile ? "\nTienes disponible \`input_bytes\` (archivo subido)." : ""} Si quieres devolver un archivo, asigna \`output_file\` (bytes) y \`output_filename\` (str).`
+                    
+                    navigator.clipboard.writeText(txt)
+                    const btn = e.currentTarget
+                    const orig = btn.innerHTML
+                    btn.innerHTML = '<span style="color:var(--accent)">✅ Copiado</span>'
+                    setTimeout(() => { if (btn.isConnected) btn.innerHTML = orig }, 2000)
+                  }}
+                  title="Copiar prompt para IA"
+                >
+                  <Icon name="copy" size={12} /> Prompt IA
+                </button>
+                <span className="chip" style={{ fontSize: 10 }}>
+                  <Icon name="zap" size={10} />
+                  Ejecuta en servidor
+                </span>
+              </div>
             </div>
             <CodeEditor
               value={config.code || ""}
@@ -492,55 +527,18 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
               </div>
             </Bento>
             
-            {/* Prompt Generator */}
+            {/* Color Guide */}
             <Bento style={{ padding: 18 }}>
-              <div className="t-kicker" style={{ marginBottom: 10 }}>Prompt para IA</div>
-              <div className="col" style={{ gap: 8 }}>
-                <p style={{ fontSize: 11, color: "var(--text-2)", margin: 0 }}>
-                  Copia esto en ChatGPT o Claude para generar tu código:
-                </p>
-                <div style={{ position: "relative" }}>
-                  <textarea
-                    className="input input-mono"
-                    readOnly
-                    style={{ fontSize: 10, minHeight: 180, resize: "vertical", color: "var(--text-3)", padding: "10px 12px" }}
-                    value={`Crea un script de Python para una herramienta llamada "${toolMeta.name}".
-Objetivo de la herramienta: [RELLENAR QUÉ DEBE HACER]
-
-El script se ejecuta mediante \`exec()\`. Los datos introducidos por el usuario te llegan en un diccionario de Python llamado \`variables\`.
-IMPORTANTE: Todos los valores del diccionario \`variables\` llegan como cadenas de texto (String). Si necesitas operar con números, conviértelos tú (ej: \`int(variables.get("clave") or 0)\`).
-
-Estas son las variables configuradas que recibirás:
-${config.userVars.length > 0 ? config.userVars.map(v => `- variables["${v.key}"]: ${
-  v.type === "select" 
-    ? `Llegará como texto. Solo puede contener uno de estos valores exactos: [${v.options?.map(o => `"${o}"`).join(', ')}]` 
-    : v.type === "number" 
-    ? "Llegará como texto, pero representará un número (ej: '5')." 
-    : "Llegará como texto libre."
-}`).join("\n") : "- Ninguna configurada aún."}
-${(config.systemVars || []).length > 0 ? (config.systemVars || []).map(v => `- variables["${v.key}"]: Variable interna del sistema.`).join("\n") : ""}
-
-Para mostrar el resultado, simplemente usa \`print()\`. La salida estándar se mostrará al usuario en pantalla. No uses input().${config.requiresFile ? "\nTienes disponible \`input_bytes\` (archivo subido)." : ""} Si quieres devolver un archivo, asigna \`output_file\` (bytes) y \`output_filename\` (str).`}
-                  />
-                  <button
-                    className="btn btn-ghost"
-                    style={{ position: "absolute", top: 4, right: 4, padding: 4, background: "var(--surface)", border: "1px solid var(--border)" }}
-                    onClick={(e) => {
-                      const btn = e.currentTarget
-                      const txt = btn.previousElementSibling as HTMLTextAreaElement
-                      navigator.clipboard.writeText(txt.value)
-                      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
-                      setTimeout(() => {
-                        if (btn && btn.isConnected) {
-                          btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
-                        }
-                      }, 2000)
-                    }}
-                    title="Copiar prompt"
-                  >
-                    <Icon name="copy" size={12} />
-                  </button>
-                </div>
+              <div className="t-kicker" style={{ marginBottom: 10 }}>Formato de Salida</div>
+              <p style={{ fontSize: 11, color: "var(--text-2)", marginBottom: 12, marginTop: 0 }}>
+                Añade color a tus <code>print()</code> usando estas etiquetas:
+              </p>
+              <div className="col" style={{ gap: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                <div style={{ color: "#FF5F56" }}>[COLOR:RED]texto[/COLOR]</div>
+                <div style={{ color: "#27C93F" }}>[COLOR:GREEN]texto[/COLOR]</div>
+                <div style={{ color: "#3498db" }}>[COLOR:BLUE]texto[/COLOR]</div>
+                <div style={{ color: "#FFBD2E" }}>[COLOR:ORANGE]texto[/COLOR]</div>
+                <div style={{ color: "rgba(255,255,255,0.5)" }}>[COLOR:GRAY]texto[/COLOR]</div>
               </div>
             </Bento>
           </div>

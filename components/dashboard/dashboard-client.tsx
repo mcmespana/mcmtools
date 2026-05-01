@@ -16,6 +16,39 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
   const [confirmDelete, setConfirmDelete] = useState<Tool | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+  
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+
+  const handleDragStart = (idx: number, e: React.DragEvent) => {
+    setDraggedIndex(idx)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDrop = async (idx: number, e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOverIndex(null)
+    if (draggedIndex === null || draggedIndex === idx) return
+
+    const newTools = [...tools]
+    const item = newTools.splice(draggedIndex, 1)[0]
+    newTools.splice(idx, 0, item)
+
+    newTools.forEach((t, i) => { t.position = i })
+    setTools(newTools)
+    setDraggedIndex(null)
+
+    try {
+      await fetch('/api/tools/reorder', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tools: newTools.map(t => ({ id: t.id, position: t.position })) }),
+      })
+      refresh()
+    } catch (e) {
+      console.error("reorder failed", e)
+    }
+  }
 
   const refresh = () => {
     startTransition(() => router.refresh())
@@ -162,6 +195,20 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
             onDelete={() => setConfirmDelete(t)}
             onDuplicate={() => handleDuplicate(t.id)}
             onToggleStatus={() => handleToggleStatus(t.id)}
+            isDragged={draggedIndex === i}
+            isDragOver={dragOverIndex === i}
+            onDragStart={(e) => handleDragStart(i, e)}
+            onDragEnter={(e) => e.preventDefault()}
+            onDragOver={(e) => {
+              e.preventDefault()
+              if (draggedIndex !== i) setDragOverIndex(i)
+            }}
+            onDragLeave={() => setDragOverIndex(null)}
+            onDrop={(e) => handleDrop(i, e)}
+            onDragEnd={() => {
+              setDraggedIndex(null)
+              setDragOverIndex(null)
+            }}
           />
         ))}
 
