@@ -230,8 +230,16 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                       <input
                         className="input"
                         type={v.type === "number" ? "number" : v.type === "date" ? "date" : "text"}
+                        inputMode={v.type === "number" ? "decimal" : undefined}
                         value={vars[v.key] ?? ""}
-                        placeholder={v.default || `Introduce ${(v.label || v.key).toLowerCase()}`}
+                        placeholder={
+                          v.default ||
+                          (v.type === "date"
+                            ? "dd/mm/aaaa"
+                            : v.type === "number"
+                            ? "Ej: 10"
+                            : `Introduce ${(v.label || v.key).toLowerCase()}`)
+                        }
                         onChange={(e) => {
                           setVars({ ...vars, [v.key]: e.target.value })
                           if (missingFields.has(v.key)) {
