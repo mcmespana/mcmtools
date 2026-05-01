@@ -225,10 +225,21 @@ export async function deleteTool(id: string): Promise<boolean> {
 export async function duplicateTool(id: string): Promise<Tool | null> {
   const original = await getTool(id)
   if (!original) return null
-  const newId = `${original.id}-copia-${Date.now().toString(36).substring(0, 4)}`
+
+  const baseName = `${original.name} copia`
+  let newId = slugify(baseName)
+  let existing = await getTool(newId)
+  let counter = 2
+  
+  while (existing) {
+    newId = slugify(`${baseName} ${counter}`)
+    existing = await getTool(newId)
+    counter++
+  }
+
   return createTool({
     id: newId,
-    name: `${original.name} (copia)`,
+    name: counter === 2 ? baseName : `${baseName} ${counter - 1}`,
     tagline: original.tagline,
     description: original.description,
     icon: original.icon,
