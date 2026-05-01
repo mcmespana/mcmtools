@@ -51,6 +51,8 @@ export function ToolCard({
           ? `linear-gradient(160deg, ${tool.tint || "rgba(199,184,255,0.12)"} 0%, var(--surface) 60%)`
           : undefined,
         outline: adminMode ? "1px solid var(--border-strong)" : "none",
+        overflow: menuOpen ? "visible" : "hidden",
+        zIndex: menuOpen ? 30 : 1,
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => {

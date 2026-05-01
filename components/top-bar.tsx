@@ -44,7 +44,7 @@ function useCrumbs(): string[] | null {
   const m = pathname.match(/^\/tools\/([^/]+)(\/config)?$/)
   if (m) {
     const tail = m[2] ? "Configuración" : "Ejecutar"
-    return [m[1].replace(/_/g, " "), tail]
+    return [tail]
   }
   return null
 }

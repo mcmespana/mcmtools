@@ -15,6 +15,9 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"identity" | "variables" | "code">("code")
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dragEnabledIndex, setDragEnabledIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   const updateConfig = (patch: Partial<ToolConfigData>) => {
     setConfig((c) => ({ ...c, ...patch }))
@@ -192,7 +195,7 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                 >
                   <option value="file">Archivo</option>
                   <option value="zip">.zip</option>
-                  <option value="text">Texto</option>
+                  <option value="text">Texto / Consola</option>
                   <option value="json">JSON</option>
                 </select>
               </div>
@@ -203,7 +206,7 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
 
       {/* Variables tab */}
       {activeTab === "variables" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24, alignItems: "stretch" }}>
           {/* User vars */}
           <Bento style={{ padding: 24 }}>
             <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
@@ -219,42 +222,148 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
             </div>
             <div className="col" style={{ gap: 8 }}>
               {config.userVars.map((v, i) => (
-                <div key={i} className="row" style={{
-                  padding: 12,
+                <div key={i} className="row"
+                  draggable={dragEnabledIndex === i}
+                  onDragStart={(e) => {
+                    setDraggedIndex(i)
+                    e.dataTransfer.effectAllowed = "move"
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (draggedIndex !== i) setDragOverIndex(i)
+                  }}
+                  onDragLeave={() => setDragOverIndex(null)}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragOverIndex(null)
+                    if (draggedIndex === null || draggedIndex === i) return
+                    const nv = [...config.userVars]
+                    const item = nv.splice(draggedIndex, 1)[0]
+                    nv.splice(i, 0, item)
+                    updateConfig({ userVars: nv })
+                    setDraggedIndex(null)
+                    setDragEnabledIndex(null)
+                  }}
+                  onDragEnd={() => {
+                    setDraggedIndex(null)
+                    setDragEnabledIndex(null)
+                    setDragOverIndex(null)
+                  }}
+                  style={{
+                  padding: 16,
                   background: "var(--surface-2)",
                   borderRadius: 14,
-                  border: "1px solid var(--border)",
-                  gap: 8,
+                  border: dragOverIndex === i ? "2px dashed var(--accent)" : "1px solid var(--border)",
+                  gap: 12,
+                  alignItems: "flex-start",
+                  opacity: draggedIndex === i ? 0.5 : 1,
+                  cursor: dragEnabledIndex === i ? "grabbing" : "default",
+                  flexWrap: "wrap",
+                  transition: "all 0.15s ease",
+                  transform: dragOverIndex === i ? "scale(1.01)" : "scale(1)",
                 }}>
-                  <div className="col" style={{ gap: 4, flex: 1 }}>
+                  <div 
+                    onMouseDown={() => setDragEnabledIndex(i)}
+                    onMouseUp={() => setDragEnabledIndex(null)}
+                    onMouseLeave={() => setDragEnabledIndex(null)}
+                    style={{ display: "flex", alignItems: "center", alignSelf: "center", color: "var(--text-3)", cursor: "grab", marginRight: -4, marginTop: 14 }}
+                  >
+                    <Icon name="grip" size={16} />
+                  </div>
+                  
+                  <div className="col" style={{ gap: 4, flex: "1 1 120px" }}>
+                    <div className="t-kicker" style={{ marginBottom: 4, fontSize: 10 }}>CLAVE (PYTHON)</div>
+                    <input
+                      className="input input-mono"
+                      value={v.key}
+                      onChange={(e) => {
+                        const nv = [...config.userVars]
+                        nv[i] = { ...v, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") }
+                        updateConfig({ userVars: nv })
+                      }}
+                      style={{ fontSize: 12 }}
+                      placeholder="clave_python"
+                    />
+                  </div>
+                  
+                  <div className="col" style={{ gap: 4, flex: "1 1 120px" }}>
+                    <div className="t-kicker" style={{ marginBottom: 4, fontSize: 10 }}>ETIQUETA (PÚBLICA)</div>
                     <input
                       className="input"
                       value={v.label}
                       onChange={(e) => {
                         const nv = [...config.userVars]
-                        nv[i] = { ...v, label: e.target.value, key: e.target.value.toLowerCase().replace(/\s+/g, "_") }
+                        nv[i] = { ...v, label: e.target.value }
                         updateConfig({ userVars: nv })
                       }}
                       style={{ fontSize: 13, fontWeight: 500 }}
-                      placeholder="Nombre"
-                    />
-                    <input
-                      className="input"
-                      value={v.default}
-                      onChange={(e) => {
-                        const nv = [...config.userVars]
-                        nv[i] = { ...v, default: e.target.value }
-                        updateConfig({ userVars: nv })
-                      }}
-                      style={{ fontSize: 12 }}
-                      placeholder="Valor por defecto"
+                      placeholder={v.key || "Etiqueta"}
                     />
                   </div>
-                  <button className="btn btn-ghost" onClick={() => updateConfig({
-                    userVars: config.userVars.filter((_, j) => j !== i)
-                  })} style={{ padding: 6 }}>
-                    <Icon name="x" size={14} />
-                  </button>
+                  
+                  <div className="col" style={{ gap: 4, flex: "1 1 120px" }}>
+                    <div className="t-kicker" style={{ marginBottom: 4, fontSize: 10 }}>
+                      {v.type === "select" ? "OPCIONES (OBLIGATORIO)" : "VALOR POR DEFECTO"}
+                    </div>
+                    {v.type === "select" ? (
+                      <input
+                        className="input"
+                        value={(v.options || []).join(", ")}
+                        onChange={(e) => {
+                          const nv = [...config.userVars]
+                          nv[i] = { ...v, options: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }
+                          updateConfig({ userVars: nv })
+                        }}
+                        style={{ fontSize: 13 }}
+                        placeholder="separar con ,"
+                        required
+                      />
+                    ) : (
+                      <input
+                        className="input"
+                        value={v.default}
+                        onChange={(e) => {
+                          const nv = [...config.userVars]
+                          nv[i] = { ...v, default: e.target.value }
+                          updateConfig({ userVars: nv })
+                        }}
+                        style={{ fontSize: 13 }}
+                        placeholder="opcional"
+                      />
+                    )}
+                  </div>
+                  
+                  <div className="col" style={{ gap: 4, flex: "0 1 120px" }}>
+                    <div className="t-kicker" style={{ marginBottom: 4, fontSize: 10 }}>TIPO</div>
+                    <select
+                      className="input"
+                      value={v.type}
+                      onChange={(e) => {
+                        const newType = e.target.value as UserVar["type"]
+                        const nv = [...config.userVars]
+                        if (newType === "select" && (!v.options || v.options.length === 0) && v.default) {
+                          nv[i] = { ...v, type: newType, options: [v.default] }
+                        } else {
+                          nv[i] = { ...v, type: newType }
+                        }
+                        updateConfig({ userVars: nv })
+                      }}
+                      style={{ fontSize: 13 }}
+                    >
+                      <option value="text">Texto</option>
+                      <option value="number">Número</option>
+                      <option value="date">Fecha</option>
+                      <option value="select">Opciones</option>
+                    </select>
+                  </div>
+                  
+                  <div className="col" style={{ gap: 4, alignSelf: "center", marginTop: 14 }}>
+                    <button className="btn btn-ghost" onClick={() => updateConfig({
+                      userVars: config.userVars.filter((_, j) => j !== i)
+                    })} style={{ padding: 6, color: "var(--red-11)" }}>
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -320,8 +429,8 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
 
       {/* Code tab */}
       {activeTab === "code" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 24, alignItems: "start" }}>
-          <Bento style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", flexDirection: "row", gap: 24, alignItems: "start" }}>
+          <Bento style={{ padding: 0, overflow: "hidden", flex: "1 1 500px" }}>
             <div style={{
               padding: "12px 20px",
               borderBottom: "1px solid var(--border)",
@@ -346,7 +455,7 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
           </Bento>
 
           {/* Reference */}
-          <div className="col" style={{ gap: 14 }}>
+          <div className="col" style={{ gap: 14, flex: "0 1 260px", minWidth: 260 }}>
             <Bento style={{ padding: 18 }}>
               <div className="t-kicker" style={{ marginBottom: 10 }}>Variables</div>
               <div className="col" style={{ gap: 4 }}>
@@ -380,6 +489,58 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                     <div className="muted-2" style={{ fontSize: 10 }}>{r.d}</div>
                   </div>
                 ))}
+              </div>
+            </Bento>
+            
+            {/* Prompt Generator */}
+            <Bento style={{ padding: 18 }}>
+              <div className="t-kicker" style={{ marginBottom: 10 }}>Prompt para IA</div>
+              <div className="col" style={{ gap: 8 }}>
+                <p style={{ fontSize: 11, color: "var(--text-2)", margin: 0 }}>
+                  Copia esto en ChatGPT o Claude para generar tu código:
+                </p>
+                <div style={{ position: "relative" }}>
+                  <textarea
+                    className="input input-mono"
+                    readOnly
+                    style={{ fontSize: 10, minHeight: 180, resize: "vertical", color: "var(--text-3)", padding: "10px 12px" }}
+                    value={`Crea un script de Python para una herramienta llamada "${toolMeta.name}".
+Objetivo de la herramienta: [RELLENAR QUÉ DEBE HACER]
+
+El script se ejecuta mediante \`exec()\`. Los datos introducidos por el usuario te llegan en un diccionario de Python llamado \`variables\`.
+IMPORTANTE: Todos los valores del diccionario \`variables\` llegan como cadenas de texto (String). Si necesitas operar con números, conviértelos tú (ej: \`int(variables.get("clave") or 0)\`).
+
+Estas son las variables configuradas que recibirás:
+${config.userVars.length > 0 ? config.userVars.map(v => `- variables["${v.key}"]: ${
+  v.type === "select" 
+    ? `Llegará como texto. Solo puede contener uno de estos valores exactos: [${v.options?.map(o => `"${o}"`).join(', ')}]` 
+    : v.type === "number" 
+    ? "Llegará como texto, pero representará un número (ej: '5')." 
+    : "Llegará como texto libre."
+}`).join("\n") : "- Ninguna configurada aún."}
+${(config.systemVars || []).length > 0 ? (config.systemVars || []).map(v => `- variables["${v.key}"]: Variable interna del sistema.`).join("\n") : ""}
+
+Para mostrar el resultado, simplemente usa \`print()\`. La salida estándar se mostrará al usuario en pantalla. No uses input().${config.requiresFile ? "\nTienes disponible \`input_bytes\` (archivo subido)." : ""} Si quieres devolver un archivo, asigna \`output_file\` (bytes) y \`output_filename\` (str).`}
+                  />
+                  <button
+                    className="btn btn-ghost"
+                    style={{ position: "absolute", top: 4, right: 4, padding: 4, background: "var(--surface)", border: "1px solid var(--border)" }}
+                    onClick={(e) => {
+                      const btn = e.currentTarget
+                      const txt = btn.previousElementSibling as HTMLTextAreaElement
+                      navigator.clipboard.writeText(txt.value)
+                      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                      setTimeout(() => {
+                        if (btn && btn.isConnected) {
+                          btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+                        }
+                      }, 2000)
+                    }}
+                    title="Copiar prompt"
+                  >
+                    <Icon name="copy" size={12} />
+                  </button>
+                </div>
               </div>
             </Bento>
           </div>

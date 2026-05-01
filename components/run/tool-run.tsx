@@ -25,8 +25,23 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
   const userVarsInit: Record<string, string> = {}
   for (const v of tool.config.userVars) userVarsInit[v.key] = v.default
   const [vars, setVars] = useState<Record<string, string>>(userVarsInit)
+  const [missingFields, setMissingFields] = useState<Set<string>>(new Set())
 
   const execute = async () => {
+    const missing = new Set<string>()
+    tool.config.userVars.forEach(v => {
+      if (!vars[v.key] || vars[v.key].trim() === "") {
+        missing.add(v.key)
+      }
+    })
+    
+    if (missing.size > 0) {
+      setMissingFields(missing)
+      setRunError("⚠️ Por favor, rellena todos los campos obligatorios antes de ejecutar.")
+      return
+    }
+
+    setMissingFields(new Set())
     setPhase("running")
     setRunError(null)
     setRunOutput(null)
@@ -189,14 +204,24 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                 {tool.config.userVars.map((v) => (
                   <div key={v.key}>
                     <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 6, display: "block" }}>
-                      {v.label}
+                      {v.label || v.key}
                     </label>
                     {v.type === "select" && v.options ? (
                       <select
                         className="input"
                         value={vars[v.key] ?? ""}
-                        onChange={(e) => setVars({ ...vars, [v.key]: e.target.value })}
+                        onChange={(e) => {
+                          setVars({ ...vars, [v.key]: e.target.value })
+                          if (missingFields.has(v.key)) {
+                            const newMissing = new Set(missingFields)
+                            newMissing.delete(v.key)
+                            setMissingFields(newMissing)
+                            if (newMissing.size === 0) setRunError(null)
+                          }
+                        }}
+                        style={{ borderColor: missingFields.has(v.key) ? "#E74C3C" : undefined }}
                       >
+                        <option value="" disabled>Selecciona una opción...</option>
                         {v.options.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
@@ -206,8 +231,17 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                         className="input"
                         type={v.type === "number" ? "number" : v.type === "date" ? "date" : "text"}
                         value={vars[v.key] ?? ""}
-                        placeholder={v.default || `Introduce ${v.label.toLowerCase()}`}
-                        onChange={(e) => setVars({ ...vars, [v.key]: e.target.value })}
+                        placeholder={v.default || `Introduce ${(v.label || v.key).toLowerCase()}`}
+                        onChange={(e) => {
+                          setVars({ ...vars, [v.key]: e.target.value })
+                          if (missingFields.has(v.key)) {
+                            const newMissing = new Set(missingFields)
+                            newMissing.delete(v.key)
+                            setMissingFields(newMissing)
+                            if (newMissing.size === 0) setRunError(null)
+                          }
+                        }}
+                        style={{ borderColor: missingFields.has(v.key) ? "#E74C3C" : undefined }}
                       />
                     )}
                   </div>
@@ -402,21 +436,45 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                 </div>
 
                 {runOutput && (
-                  <pre style={{
-                    background: "var(--surface-2)",
-                    color: "var(--text)",
-                    padding: 16,
-                    borderRadius: 12,
-                    fontSize: 12,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    overflowX: "auto",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-all",
-                    lineHeight: 1.6,
-                    marginBottom: 16,
+                  <div style={{
+                    background: "#0A0A0A",
+                    borderRadius: 16,
+                    border: "1px solid rgba(0,0,0,0.1)",
+                    boxShadow: "0 12px 24px -10px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.05) inset",
+                    overflow: "hidden",
+                    marginBottom: 20,
                   }}>
-                    {runOutput}
-                  </pre>
+                    {/* Top bar */}
+                    <div style={{
+                      background: "#161616",
+                      borderBottom: "1px solid rgba(255,255,255,0.08)",
+                      padding: "10px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FF5F56" }} />
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FFBD2E" }} />
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#27C93F" }} />
+                      <div style={{ marginLeft: 8, fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "rgba(255,255,255,0.4)" }}>
+                        {tool.name.toLowerCase().replace(/\s+/g, '-')}.py
+                      </div>
+                    </div>
+                    {/* Terminal content */}
+                    <pre style={{
+                      margin: 0,
+                      padding: "20px 24px",
+                      color: "#F5F2EC",
+                      fontSize: 13,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      overflowX: "auto",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-all",
+                      lineHeight: 1.7,
+                    }}>
+                      {runOutput}
+                    </pre>
+                  </div>
                 )}
               </>
             )}

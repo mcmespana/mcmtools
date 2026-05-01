@@ -105,8 +105,14 @@ class handler(BaseHTTPRequestHandler):
             except ImportError:
                 pass
 
-            # Execute the admin's Python code
-            exec(code, import_scope, local_scope)
+            import contextlib
+            
+            f = io.StringIO()
+            with contextlib.redirect_stdout(f):
+                # Execute the admin's Python code
+                exec(code, import_scope, local_scope)
+
+            stdout_output = f.getvalue()
 
             # Return the processed file if one was generated
             if local_scope.get("output_file"):
@@ -128,6 +134,7 @@ class handler(BaseHTTPRequestHandler):
             # No file output — return stdout/success message
             self._send_json(200, {
                 "status": "success",
+                "stdout": stdout_output,
                 "message": "Ejecutado sin devolver archivo",
             })
 
