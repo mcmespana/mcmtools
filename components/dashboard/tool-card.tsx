@@ -70,9 +70,7 @@ export function ToolCard({
         minHeight: 200,
         cursor: adminMode ? "grab" : "pointer",
         position: "relative",
-        background: tool.featured
-          ? `linear-gradient(160deg, ${tool.tint || "rgba(199,184,255,0.12)"} 0%, var(--surface) 60%)`
-          : undefined,
+        background: `linear-gradient(160deg, ${tool.tint || tool.iconBg + "1A"} 0%, var(--surface) 60%)`,
         outline: isDragOver ? "2px dashed var(--accent)" : adminMode ? "1px solid var(--border-strong)" : "none",
         overflow: menuOpen ? "visible" : "hidden",
         zIndex: menuOpen ? 30 : isDragOver ? 20 : 1,

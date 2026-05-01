@@ -225,7 +225,7 @@ export async function deleteTool(id: string): Promise<boolean> {
 export async function duplicateTool(id: string): Promise<Tool | null> {
   const original = await getTool(id)
   if (!original) return null
-  const newId = `${original.id}_copy_${Date.now()}`
+  const newId = `${original.id}-copia-${Date.now().toString(36).substring(0, 4)}`
   return createTool({
     id: newId,
     name: `${original.name} (copia)`,
@@ -255,7 +255,7 @@ export function slugify(s: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "tool"
 }

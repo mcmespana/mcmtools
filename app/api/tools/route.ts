@@ -14,8 +14,15 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const baseId = slugify(body.name ?? "tool")
-    const id = `${baseId}_${Date.now().toString(36)}`
+    const id = slugify(body.name ?? "tool")
+    
+    // Check if tool with this ID already exists
+    const { getTool } = await import("@/lib/db")
+    const existing = await getTool(id)
+    if (existing) {
+      return NextResponse.json({ error: "Ya existe una herramienta con ese nombre. Por favor, elige uno diferente." }, { status: 409 })
+    }
+
     const tool = await createTool({
       id,
       name: body.name || "Nueva tool",

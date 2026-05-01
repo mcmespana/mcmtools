@@ -409,8 +409,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                   fontSize: 12,
                   fontFamily: "'JetBrains Mono', monospace",
                   overflowX: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
+                  whiteSpace: "pre",
                   lineHeight: 1.6,
                 }}>
                   {runError}
@@ -468,8 +467,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                       fontSize: 13,
                       fontFamily: "'JetBrains Mono', monospace",
                       overflowX: "auto",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-all",
+                      whiteSpace: "pre",
                       lineHeight: 1.7,
                     }}>
                       {(() => {
@@ -512,7 +510,7 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
               </>
             )}
 
-            <div className="row" style={{ gap: 10, marginTop: 8 }}>
+            <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: "wrap" }}>
               {downloadUrl && (
                 <a
                   href={downloadUrl}
@@ -523,30 +521,12 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
                   <Icon name="download" size={15} /> Descargar {downloadName}
                 </a>
               )}
-              <button className="btn" onClick={execute} style={{ padding: "14px 20px" }}>
+              <button className="btn" onClick={execute} style={{ flex: 1, padding: "14px 20px", justifyContent: "center" }}>
                 <Icon name="zap" size={13} /> Volver a ejecutar
               </button>
-              <button className="btn" onClick={reset} style={{ padding: "14px 20px" }}>
+              <button className="btn" onClick={reset} style={{ flex: 1, padding: "14px 20px", justifyContent: "center" }}>
                 <Icon name="refresh" size={13} /> Nueva ejecución
               </button>
-            </div>
-          </Bento>
-
-          {/* Stats */}
-          <Bento style={{ padding: 22 }}>
-            <div className="t-kicker" style={{ marginBottom: 12 }}>Histórico</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14 }}>
-              {[
-                { n: String(stats.runs), label: "ejecuciones" },
-                { n: String(stats.generated), label: "archivos" },
-                { n: String(stats.errors), label: "errores" },
-                { n: stats.avgDuration, label: "media" },
-              ].map((s) => (
-                <div key={s.label}>
-                  <div className="t-display" style={{ fontSize: 24, lineHeight: 1 }}>{s.n}</div>
-                  <div className="italic-serif muted-2" style={{ fontSize: 11, marginTop: 2 }}>{s.label}</div>
-                </div>
-              ))}
             </div>
           </Bento>
         </div>
