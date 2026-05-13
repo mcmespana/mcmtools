@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const containerClient = serviceClient.getContainerClient(CONTAINER)
 
     // Auto-create container if it doesn't exist (private access)
-    await containerClient.createIfNotExists({ access: "blob" })
+    await containerClient.createIfNotExists()
 
     // Parse account name and key from connection string for SAS generation
     const accountNameMatch = connStr.match(/AccountName=([^;]+)/)
