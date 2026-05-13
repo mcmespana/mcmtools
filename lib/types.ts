@@ -10,7 +10,7 @@ export type UserVar = {
   icon: string
   default: string
   options?: string[]  // Para type: "select"
-  required?: boolean
+  required?: boolean  // Si true, el usuario DEBE rellenar este campo antes de ejecutar
 }
 
 // Variables estáticas del sistema (ocultas al usuario, las usa el código)

@@ -30,14 +30,15 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
   const execute = async () => {
     const missing = new Set<string>()
     tool.config.userVars.forEach(v => {
-      if (!vars[v.key] || vars[v.key].trim() === "") {
+      // Solo los campos marcados como obligatorios bloquean la ejecución
+      if (v.required && (!vars[v.key] || vars[v.key].trim() === "")) {
         missing.add(v.key)
       }
     })
     
     if (missing.size > 0) {
       setMissingFields(missing)
-      setRunError("⚠️ Por favor, rellena todos los campos obligatorios antes de ejecutar.")
+      setRunError("⚠️ Por favor, rellena los campos obligatorios (*) antes de ejecutar.")
       return
     }
 
@@ -203,8 +204,14 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
               }}>
                 {tool.config.userVars.map((v) => (
                   <div key={v.key}>
-                    <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 6, display: "block" }}>
+                    <label style={{ fontSize: 13, fontWeight: 500, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
                       {v.label || v.key}
+                      {v.required && (
+                        <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 15, lineHeight: 1 }} title="Campo obligatorio">*</span>
+                      )}
+                      {!v.required && (
+                        <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 400, marginLeft: 2 }}>(opcional)</span>
+                      )}
                     </label>
                     {v.type === "select" && v.options ? (
                       <select

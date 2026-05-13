@@ -9,15 +9,20 @@ import type { UserVar, SystemVar } from "@/lib/types"
 
 const DEFAULT_CODE = `# Escribe tu lógica en Python aquí.
 #
-# Variables disponibles (inyectadas automáticamente):
-#   variables        → dict con todas las variables (usuario + sistema)
-#   input_bytes      → bytes del archivo subido (o None si no hay archivo)
+# Variables del usuario (rellenadas en el formulario):
+#   variables["clave"]   → valor introducido por el usuario
+#
+# Variables del sistema (ocultas al usuario, configuradas por el admin):
+#   variables["clave"]   → valor estático inyectado de forma segura
+#
+# Otras variables disponibles:
+#   input_bytes          → bytes del archivo subido (o None si no hay archivo)
 #
 # Para devolver un archivo al usuario:
 #   output_file      = bytes_del_resultado
 #   output_filename  = "nombre_del_archivo.ext"
 #
-# Ejemplo: devolver el mismo archivo renombrado
+# Ejemplo:
 # output_file = input_bytes
 # output_filename = f"procesado_{variables.get('mes', 'enero')}.pdf"
 
@@ -352,7 +357,7 @@ function TabVariables({ draft, update }: { draft: Draft; update: (p: Partial<Dra
     update({
       userVars: [
         ...draft.userVars,
-        { key: "nueva_var", label: "Nueva variable", type: "text", icon: "type", default: "" },
+        { key: "nueva_var", label: "Nueva variable", type: "text", icon: "type", default: "", required: false },
       ],
     })
   const removeUserVar = (i: number) => update({ userVars: draft.userVars.filter((_, j) => j !== i) })
@@ -403,13 +408,14 @@ function TabVariables({ draft, update }: { draft: Draft; update: (p: Partial<Dra
                 key={i}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr 100px 40px",
+                  gridTemplateColumns: "1fr 1fr 100px auto auto",
                   alignItems: "end",
                   gap: 10,
                   padding: 14,
                   background: "var(--surface-2)",
-                  border: "1px solid var(--border)",
+                  border: `1px solid ${v.required ? "var(--accent)" : "var(--border)"}`,
                   borderRadius: 16,
+                  transition: "border-color 0.15s ease",
                 }}
               >
                 <div>
@@ -457,10 +463,40 @@ function TabVariables({ draft, update }: { draft: Draft; update: (p: Partial<Dra
                     <option value="select">Opciones</option>
                   </select>
                 </div>
+                {/* Toggle obligatorio */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, paddingBottom: 2 }}>
+                  <button
+                    title={v.required ? "Campo obligatorio (click para hacer opcional)" : "Campo opcional (click para hacer obligatorio)"}
+                    onClick={() => {
+                      const nv = [...draft.userVars]
+                      nv[i] = { ...v, required: !v.required }
+                      update({ userVars: nv })
+                    }}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      border: `1.5px solid ${v.required ? "var(--accent)" : "var(--border)"}`,
+                      background: v.required ? "var(--accent)" : "var(--surface)",
+                      color: v.required ? "#fff" : "var(--text-3)",
+                      cursor: "pointer",
+                      display: "grid",
+                      placeItems: "center",
+                      transition: "all 0.15s ease",
+                      fontSize: 14,
+                      fontWeight: 700,
+                    }}
+                  >
+                    *
+                  </button>
+                  <span style={{ fontSize: 9, color: v.required ? "var(--accent)" : "var(--text-3)", fontWeight: 600, letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
+                    {v.required ? "OBLIG." : "OPCN."}
+                  </span>
+                </div>
                 <button
                   className="btn btn-ghost"
                   onClick={() => removeUserVar(i)}
-                  style={{ padding: 6, justifyContent: "center" }}
+                  style={{ padding: 6, justifyContent: "center", alignSelf: "center" }}
                 >
                   <Icon name="x" size={14} />
                 </button>
@@ -582,10 +618,9 @@ function TabVariables({ draft, update }: { draft: Draft; update: (p: Partial<Dra
 
 /* ─── Tab C: Código Python ─── */
 function TabCode({ draft, update }: { draft: Draft; update: (p: Partial<Draft>) => void }) {
-  const allVarKeys = [
-    ...draft.userVars.map((v) => v.key),
-    ...draft.systemVars.map((v) => v.key),
-  ]
+  // Solo mostramos las claves de variables de usuario en el panel de referencia.
+  // Las variables de sistema son secretas y no se listan públicamente.
+  const userVarKeys = draft.userVars.map((v) => v.key)
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 24, alignItems: "start" }}>
@@ -616,14 +651,14 @@ function TabCode({ draft, update }: { draft: Draft; update: (p: Partial<Draft>) 
       {/* Reference panel */}
       <div className="col" style={{ gap: 16 }}>
         <Bento style={{ padding: 20 }}>
-          <div className="t-kicker" style={{ marginBottom: 12 }}>Variables disponibles</div>
+          <div className="t-kicker" style={{ marginBottom: 12 }}>Variables del usuario</div>
           <div className="col" style={{ gap: 6 }}>
-            {allVarKeys.length === 0 ? (
+            {userVarKeys.length === 0 ? (
               <div className="italic-serif muted-2" style={{ fontSize: 12 }}>
                 Añade variables en la pestaña anterior
               </div>
             ) : (
-              allVarKeys.map((k) => (
+              userVarKeys.map((k) => (
                 <div
                   key={k}
                   className="t-mono"
@@ -638,6 +673,22 @@ function TabCode({ draft, update }: { draft: Draft; update: (p: Partial<Draft>) 
                   variables[<span style={{ color: "var(--accent)" }}>"{k}"</span>]
                 </div>
               ))
+            )}
+            {draft.systemVars.length > 0 && (
+              <div style={{
+                marginTop: 6,
+                padding: "6px 10px",
+                background: "var(--surface-2)",
+                borderRadius: 8,
+                fontSize: 10,
+                color: "var(--text-3)",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}>
+                <Icon name="lock" size={10} />
+                +{draft.systemVars.length} var{draft.systemVars.length !== 1 ? "s" : ""} de sistema (ocultas)
+              </div>
             )}
           </div>
         </Bento>

@@ -215,7 +215,7 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                 <div className="italic-serif muted" style={{ fontSize: 12 }}>Formulario público</div>
               </div>
               <button className="btn btn-accent" onClick={() => updateConfig({
-                userVars: [...config.userVars, { key: "nueva_var", label: "Nueva variable", type: "text", icon: "type", default: "" }]
+                userVars: [...config.userVars, { key: "nueva_var", label: "Nueva variable", type: "text", icon: "type", default: "", required: false }]
               })} style={{ fontSize: 12 }}>
                 <Icon name="plus" size={12} /> Añadir
               </button>
@@ -253,7 +253,7 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                   padding: 16,
                   background: "var(--surface-2)",
                   borderRadius: 14,
-                  border: dragOverIndex === i ? "2px dashed var(--accent)" : "1px solid var(--border)",
+                  border: v.required ? "1.5px solid var(--accent)" : dragOverIndex === i ? "2px dashed var(--accent)" : "1px solid var(--border)",
                   gap: 12,
                   alignItems: "flex-start",
                   opacity: draggedIndex === i ? 0.5 : 1,
@@ -357,6 +357,36 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                     </select>
                   </div>
                   
+                  <div className="col" style={{ gap: 4, alignSelf: "center", marginTop: 14, flexDirection: "column", alignItems: "center" }}>
+                    {/* Toggle obligatorio */}
+                    <button
+                      title={v.required ? "Campo obligatorio \u2014 click para hacer opcional" : "Campo opcional \u2014 click para hacer obligatorio"}
+                      onClick={() => {
+                        const nv = [...config.userVars]
+                        nv[i] = { ...v, required: !v.required }
+                        updateConfig({ userVars: nv })
+                      }}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        border: `1.5px solid ${v.required ? "var(--accent)" : "var(--border)"}`,
+                        background: v.required ? "var(--accent)" : "var(--surface)",
+                        color: v.required ? "#fff" : "var(--text-3)",
+                        cursor: "pointer",
+                        display: "grid",
+                        placeItems: "center",
+                        transition: "all 0.15s ease",
+                        fontSize: 14,
+                        fontWeight: 700,
+                      }}
+                    >
+                      *
+                    </button>
+                    <span style={{ fontSize: 9, color: v.required ? "var(--accent)" : "var(--text-3)", fontWeight: 600, letterSpacing: "0.03em", whiteSpace: "nowrap", marginTop: 3 }}>
+                      {v.required ? "OBLIG." : "OPCN."}
+                    </span>
+                  </div>
                   <div className="col" style={{ gap: 4, alignSelf: "center", marginTop: 14 }}>
                     <button className="btn btn-ghost" onClick={() => updateConfig({
                       userVars: config.userVars.filter((_, j) => j !== i)
@@ -447,21 +477,34 @@ export function ToolConfigView({ tool }: { tool: Tool }) {
                   className="btn btn-ghost"
                   style={{ padding: "4px 8px", fontSize: 11, background: "var(--surface-2)" }}
                   onClick={(e) => {
+                    const requiredVars = config.userVars.filter(v => v.required)
+                    const optionalVars = config.userVars.filter(v => !v.required)
                     const txt = `Crea un script de Python para una herramienta llamada "${toolMeta.name}".
 Objetivo de la herramienta: [RELLENAR QUÉ DEBE HACER]
 
 El script se ejecuta mediante \`exec()\`. Los datos introducidos por el usuario te llegan en un diccionario de Python llamado \`variables\`.
 IMPORTANTE: Todos los valores del diccionario \`variables\` llegan como cadenas de texto (String). Si necesitas operar con números, conviértelos tú (ej: \`int(variables.get("clave") or 0)\`).
 
-Estas son las variables configuradas que recibirás:
-${config.userVars.length > 0 ? config.userVars.map(v => `- variables["${v.key}"]: ${
-  v.type === "select" 
-    ? `Llegará como texto. Solo puede contener uno de estos valores exactos: [${v.options?.map(o => `"${o}"`).join(', ')}]` 
-    : v.type === "number" 
-    ? "Llegará como texto, pero representará un número (ej: '5')." 
+${requiredVars.length > 0 ? `Campos OBLIGATORIOS (el usuario siempre los rellena antes de ejecutar):
+${requiredVars.map(v => `- variables["${v.key}"]: ${
+  v.type === "select"
+    ? `Llegará como texto. Solo puede contener uno de estos valores exactos: [${v.options?.map(o => `"${o}"`).join(', ')}]`
+    : v.type === "number"
+    ? "Llegará como texto, pero representará un número (ej: '5')."
     : "Llegará como texto libre."
-}`).join("\n") : "- Ninguna configurada aún."}
-${(config.systemVars || []).length > 0 ? (config.systemVars || []).map(v => `- variables["${v.key}"]: Variable interna del sistema.`).join("\n") : ""}
+}`).join("\n")}` : ""}
+
+${optionalVars.length > 0 ? `Campos OPCIONALES (pueden llegar vacíos como '', comprueba antes de usar):
+${optionalVars.map(v => `- variables["${v.key}"]: ${
+  v.type === "select"
+    ? `Llegará como texto o vacío. Si tiene valor, solo puede ser uno de: [${v.options?.map(o => `"${o}"`).join(', ')}]`
+    : v.type === "number"
+    ? "Llegará como texto numérico o vacío."
+    : "Llegará como texto libre o vacío."
+}`).join("\n")}` : ""}
+
+${(config.systemVars || []).length > 0 ? `Variables del SISTEMA (ocultas al usuario, inyectadas automáticamente por el administrador — NO las muestres en pantalla ni en logs):
+${(config.systemVars || []).map(v => `- variables["${v.key}"]: Variable interna del sistema. Trátala como un valor secreto.`).join("\n")}` : ""}
 
 Para mostrar el resultado, simplemente usa \`print()\`. Puedes dar color al texto imprimiendo estas etiquetas alrededor de tus frases: [COLOR:RED], [COLOR:GREEN], [COLOR:BLUE], [COLOR:ORANGE], [COLOR:GRAY] y cerrándolas con [/COLOR].
 La salida estándar se mostrará al usuario en pantalla. No uses input().${config.requiresFile ? "\nTienes disponible \`input_bytes\` (archivo subido)." : ""} Si quieres devolver un archivo, asigna \`output_file\` (bytes) y \`output_filename\` (str).`
@@ -494,7 +537,7 @@ La salida estándar se mostrará al usuario en pantalla. No uses input().${confi
             <Bento style={{ padding: 18 }}>
               <div className="t-kicker" style={{ marginBottom: 10 }}>Variables</div>
               <div className="col" style={{ gap: 4 }}>
-                {[...config.userVars.map(v => v.key), ...(config.systemVars || []).map(v => v.key)].map((k) => (
+                {config.userVars.map(v => v.key).map((k) => (
                   <div key={k} className="t-mono" style={{
                     fontSize: 11,
                     padding: "5px 8px",
@@ -504,6 +547,22 @@ La salida estándar se mostrará al usuario en pantalla. No uses input().${confi
                     variables[<span style={{ color: "var(--accent)" }}>"{k}"</span>]
                   </div>
                 ))}
+                {(config.systemVars || []).length > 0 && (
+                  <div style={{
+                    padding: "5px 8px",
+                    background: "var(--surface-2)",
+                    borderRadius: 6,
+                    fontSize: 10,
+                    color: "var(--text-3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    marginTop: 4,
+                  }}>
+                    <Icon name="lock" size={10} />
+                    +{(config.systemVars || []).length} vars de sistema (ocultas)
+                  </div>
+                )}
                 {config.userVars.length === 0 && (config.systemVars || []).length === 0 && (
                   <div className="muted-2 italic-serif" style={{ fontSize: 11 }}>Sin variables definidas</div>
                 )}
