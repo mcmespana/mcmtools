@@ -91,8 +91,15 @@ class handler(BaseHTTPRequestHandler):
                 self._send_json(400, {"status": "error", "message": "Unsupported Content-Type"})
                 return
 
-            # Create the sandbox (local scope for the script)
-            local_scope = {
+            # Create a unified execution scope
+            # IMPORTANT: exec(code, globals, locals) with TWO separate dicts
+            # causes functions defined in the script to NOT see top-level variables.
+            # Using a single dict for both avoids this classic Python gotcha.
+            exec_scope = {
+                "__builtins__": __builtins__,
+                "io": io,
+                "json": json,
+                # Injected context
                 "input_bytes": input_bytes,
                 "input_files": input_files,
                 "variables": variables,
@@ -100,35 +107,28 @@ class handler(BaseHTTPRequestHandler):
                 "output_filename": "resultado.bin",
             }
 
-            # Provide common imports in the global scope
-            import_scope = {
-                "__builtins__": __builtins__,
-                "io": io,
-                "json": json,
-            }
-
             # Try importing common libraries
             try:
                 import pypdf
-                import_scope["pypdf"] = pypdf
+                exec_scope["pypdf"] = pypdf
             except ImportError:
                 pass
 
             try:
                 import csv
-                import_scope["csv"] = csv
+                exec_scope["csv"] = csv
             except ImportError:
                 pass
 
             try:
                 import re
-                import_scope["re"] = re
+                exec_scope["re"] = re
             except ImportError:
                 pass
 
             try:
                 import zipfile
-                import_scope["zipfile"] = zipfile
+                exec_scope["zipfile"] = zipfile
             except ImportError:
                 pass
 
@@ -137,14 +137,14 @@ class handler(BaseHTTPRequestHandler):
             f = io.StringIO()
             with contextlib.redirect_stdout(f):
                 # Execute the admin's Python code
-                exec(code, import_scope, local_scope)
+                exec(code, exec_scope)
 
             stdout_output = f.getvalue()
 
             # Return the processed file if one was generated
-            if local_scope.get("output_file"):
-                output_bytes = local_scope["output_file"]
-                filename = local_scope.get("output_filename", "resultado.bin")
+            if exec_scope.get("output_file"):
+                output_bytes = exec_scope["output_file"]
+                filename = exec_scope.get("output_filename", "resultado.bin")
 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
