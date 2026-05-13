@@ -55,6 +55,7 @@ class handler(BaseHTTPRequestHandler):
                 azure_conn_str = form.getfirst("azureConnStr", "")
                 if blob_names_raw and azure_conn_str:
                     try:
+                        # pyrefly: ignore [missing-import]
                         from azure.storage.blob import BlobServiceClient
                         blob_names = json.loads(blob_names_raw)
                         service_client = BlobServiceClient.from_connection_string(azure_conn_str)
