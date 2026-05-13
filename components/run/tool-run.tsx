@@ -50,9 +50,57 @@ export function ToolRun({ tool, stats }: { tool: Tool; stats: ToolStats }) {
 
     try {
       const formData = new FormData()
+
+      // — Intenta subir archivos grandes directamente a Azure Blob Storage —
+      let blobNames: string[] = []
       if (droppedFiles.length > 0) {
-        droppedFiles.forEach((file) => formData.append("files", file))
+        const uploadResults = await Promise.all(
+          droppedFiles.map(async (file) => {
+            try {
+              const urlRes = await fetch("/api/upload-url", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: file.name }),
+              })
+              if (!urlRes.ok) return null // fallback a multipart
+              const { uploadUrl, blobName } = await urlRes.json()
+              if (!uploadUrl) return null
+
+              // PUT directo al blob de Azure (sin pasar por Vercel)
+              const putRes = await fetch(uploadUrl, {
+                method: "PUT",
+                headers: {
+                  "x-ms-blob-type": "BlockBlob",
+                  "Content-Type": file.type || "application/octet-stream",
+                },
+                body: file,
+              })
+              if (!putRes.ok) return null
+              return blobName as string
+            } catch {
+              return null
+            }
+          })
+        )
+
+        const successful = uploadResults.filter((b): b is string => b !== null)
+        const failed = uploadResults.filter((b) => b === null).length
+
+        if (successful.length > 0) {
+          // Al menos algunos subieron a Azure — mandamos sus nombres
+          blobNames = successful
+          formData.append("blobNames", JSON.stringify(blobNames))
+          // Los que fallaron, los mandamos por multipart (son pocos/pequeños)
+          if (failed > 0) {
+            const failedFiles = droppedFiles.filter((_, i) => uploadResults[i] === null)
+            failedFiles.forEach((f) => formData.append("files", f))
+          }
+        } else {
+          // Azure no disponible — fallback: multipart clásico
+          droppedFiles.forEach((f) => formData.append("files", f))
+        }
       }
+
       formData.append("userVars", JSON.stringify(vars))
 
       const res = await fetch(`/api/tools/${tool.id}/run`, {

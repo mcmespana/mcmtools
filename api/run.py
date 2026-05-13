@@ -32,7 +32,7 @@ class handler(BaseHTTPRequestHandler):
                 variables_raw = form.getfirst("variables", "{}")
                 variables = json.loads(variables_raw)
 
-                # Read uploaded files
+                # Read uploaded files (small / fallback files)
                 input_files = {}
                 
                 # Handling multiple 'files' fields
@@ -50,7 +50,34 @@ class handler(BaseHTTPRequestHandler):
                 if "file" in form and form["file"].file:
                     input_files[form["file"].filename or "archivo.bin"] = form["file"].file.read()
 
+                # --- Azure Blob download (large files uploaded directly from browser) ---
+                blob_names_raw = form.getfirst("blobNames", "")
+                azure_conn_str = form.getfirst("azureConnStr", "")
+                if blob_names_raw and azure_conn_str:
+                    try:
+                        from azure.storage.blob import BlobServiceClient
+                        blob_names = json.loads(blob_names_raw)
+                        service_client = BlobServiceClient.from_connection_string(azure_conn_str)
+                        container_client = service_client.get_container_client("mcmtools-uploads")
+                        for blob_name in blob_names:
+                            blob_client = container_client.get_blob_client(blob_name)
+                            blob_data = blob_client.download_blob().readall()
+                            # Strip the timestamp prefix to get the original filename
+                            original_name = "_".join(blob_name.split("_")[1:]) or blob_name
+                            input_files[original_name] = blob_data
+                            # Schedule deletion (fire and forget — won't block execution)
+                            try:
+                                blob_client.delete_blob()
+                            except Exception:
+                                pass
+                    except Exception as azure_err:
+                        # Log but continue — don't crash the whole execution
+                        import sys
+                        print(f"[mcm] Azure download error: {azure_err}", file=sys.stderr)
+                # --- End Azure ---
+
                 input_bytes = next(iter(input_files.values())) if input_files else None
+
 
             elif "application/json" in content_type:
                 body_bytes = self.rfile.read(int(self.headers.get("Content-Length", 0)))

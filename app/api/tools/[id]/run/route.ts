@@ -20,6 +20,8 @@ export async function POST(req: Request, { params }: RouteCtx) {
     const userVars: Record<string, string> = userVarsRaw
       ? JSON.parse(userVarsRaw as string)
       : {}
+    const blobNamesRaw = formData.get("blobNames")
+    const blobNames: string[] = blobNamesRaw ? JSON.parse(blobNamesRaw as string) : []
 
     // Merge user vars with system vars
     const systemVars: Record<string, string> = {}
@@ -57,6 +59,12 @@ export async function POST(req: Request, { params }: RouteCtx) {
       const pyFormData = new FormData()
       pyFormData.append("code", code)
       pyFormData.append("variables", JSON.stringify(allVariables))
+      // Si hay blobs en Azure, mandamos sus nombres (payload mínimo)
+      if (blobNames.length > 0) {
+        pyFormData.append("blobNames", JSON.stringify(blobNames))
+        pyFormData.append("azureConnStr", process.env.AZURE_STORAGE_CONNECTION_STRING || "")
+      }
+      // Archivos pequeños que no fueron a Azure (o fallback sin Azure)
       uploadedFiles.forEach(f => {
         if (f.size > 0) pyFormData.append("files", f)
       })
