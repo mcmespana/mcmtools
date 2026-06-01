@@ -116,7 +116,7 @@ export function WhatsappWizard() {
             <Icon name="arrowLeft" size={13} /> Atrás
           </button>
           {data && sourceName && step === 0 && <span className="muted-3" style={{ fontSize: 12, alignSelf: "center" }}>{sourceName}</span>}
-          <button className="btn btn-accent" onClick={() => setStep((s) => s + 1)} disabled={!canNext} style={{ opacity: canNext ? 1 : 0.5 }}>
+          <button className="btn btn-accent" onClick={() => setStep((s) => s + 1)} disabled={!canNext} style={{ opacity: canNext ? 1 : 0.5, background: "#25D366", color: "#fff", borderColor: "#25D366" }}>
             Continuar <Icon name="arrowRight" size={13} />
           </button>
         </div>

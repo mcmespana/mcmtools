@@ -81,7 +81,7 @@ export function SourceSinergia({ onLoaded }: { onLoaded: (data: DataSourceResult
           <div className="muted-2" style={{ fontSize: 13, maxWidth: 420 }}>
             Se cargarán los contactos con móvil y sin marca de “no llamar”. Luego podrás filtrar y elegir destinatarios.
           </div>
-          <button className="btn btn-accent" onClick={load} disabled={loading} style={{ padding: "12px 22px" }}>
+          <button className="btn btn-accent" onClick={load} disabled={loading} style={{ padding: "12px 22px", background: ACCENT, color: "#fff", borderColor: ACCENT }}>
             <Icon name={loading ? "refresh" : "globe"} size={15} /> {loading ? "Cargando…" : "Cargar contactos"}
           </button>
           {error && <div className="row" style={{ gap: 8, color: "#E74C3C", fontSize: 13 }}><Icon name="x" size={14} /> {error}</div>}
@@ -149,7 +149,7 @@ export function SourceSinergia({ onLoaded }: { onLoaded: (data: DataSourceResult
         </table>
       </Bento>
 
-      <button className="btn btn-accent" onClick={confirm} disabled={selected.size === 0} style={{ justifyContent: "center", padding: "12px 22px", opacity: selected.size ? 1 : 0.5 }}>
+      <button className="btn btn-accent" onClick={confirm} disabled={selected.size === 0} style={{ justifyContent: "center", padding: "12px 22px", opacity: selected.size ? 1 : 0.5, background: ACCENT, color: "#fff", borderColor: ACCENT }}>
         <Icon name="check" size={15} /> Usar {selected.size} contacto{selected.size !== 1 ? "s" : ""}
       </button>
     </div>

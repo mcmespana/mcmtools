@@ -118,7 +118,7 @@ export function StepReview({
 
       {error && <div className="row" style={{ gap: 8, color: "#E74C3C", fontSize: 13 }}><Icon name="x" size={14} /> {error}</div>}
 
-      <button className="btn btn-accent" onClick={sendAll} disabled={sending || valid === 0} style={{ justifyContent: "center", padding: "16px 24px", fontSize: 16, fontWeight: 600, borderRadius: 16, opacity: sending || valid === 0 ? 0.6 : 1 }}>
+      <button className="btn btn-accent" onClick={sendAll} disabled={sending || valid === 0} style={{ justifyContent: "center", padding: "16px 24px", fontSize: 16, fontWeight: 600, borderRadius: 16, opacity: sending || valid === 0 ? 0.6 : 1, background: ACCENT, color: "#fff", borderColor: ACCENT }}>
         <Icon name="whatsapp" size={18} /> {sending ? "Enviando…" : `Enviar a ${valid} destinatario${valid !== 1 ? "s" : ""}`}
       </button>
     </div>
