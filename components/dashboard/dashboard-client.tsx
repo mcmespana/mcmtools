@@ -181,6 +181,41 @@ export function DashboardClient({ initialTools }: { initialTools: Tool[] }) {
           gap: 18,
         }}
       >
+        {/* WhatsApp MCM — feature dedicada (no usa el flujo genérico /[id]) */}
+        <Bento
+          hoverLift
+          onClick={() => router.push("/whatsapp")}
+          style={{
+            cursor: "pointer",
+            minHeight: 200,
+            padding: 26,
+            position: "relative",
+            background: "linear-gradient(160deg, #25D36622 0%, var(--surface) 60%)",
+          }}
+        >
+          <div className="col" style={{ height: "100%", justifyContent: "space-between", gap: 16 }}>
+            <div className="row" style={{ gap: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "#25D366", color: "#fff", display: "grid", placeItems: "center", border: "1px solid var(--border)" }}>
+                <Icon name="whatsapp" size={20} stroke={1.7} />
+              </div>
+              <span className="chip chip-accent">{"● FEATURED"}</span>
+            </div>
+            <div>
+              <div className="t-display" style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, color: "var(--text)" }}>
+                WhatsApp MCM
+              </div>
+              <div className="italic-serif" style={{ fontSize: 14, marginTop: 4, color: "var(--text-2)" }}>
+                Envíos masivos con plantillas de KAPSO
+              </div>
+            </div>
+            <div className="row" style={{ gap: 6 }}>
+              <span className="chip"><Icon name="table" size={11} /> Excel / CRM</span>
+              <Icon name="arrowRight" size={11} className="muted-3" />
+              <span className="chip"><Icon name="send" size={11} /> WhatsApp</span>
+            </div>
+          </div>
+        </Bento>
+
         {visibleTools.map((t, i) => (
           <ToolCard
             key={t.id}
