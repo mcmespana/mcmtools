@@ -27,6 +27,37 @@ function getComponent(t: WhatsappTemplate, type: string): TemplateComponent | un
 }
 
 /**
+ * Devuelve el valor de ejemplo de una variable.
+ * - Posicional ({{2}}): se indexa por el NÚMERO (2 → posición 1), no por el
+ *   orden de aparición en el texto. Así "{{2}} … {{1}}" no mezcla los ejemplos.
+ * - Nombrada ({{nombre}}): se busca por nombre en *_named_params.
+ */
+function pickExample(
+  token: string,
+  kind: "positional" | "named",
+  appearanceIdx: number,
+  positional: string[],
+  named?: { param_name: string; example: string }[],
+): string | undefined {
+  if (kind === "named") {
+    return named?.find((p) => p.param_name === token)?.example ?? positional[appearanceIdx]
+  }
+  return positional[Number(token) - 1]
+}
+
+/**
+ * Ordena las variables de un componente para el envío. Los parámetros
+ * POSICIONALES deben ir en orden numérico ({{1}}, {{2}}, {{3}}…) porque Meta
+ * los empareja por POSICIÓN en el array, no por el número. Los NOMBRADOS se
+ * emparejan por `parameter_name`, así que su orden es indiferente.
+ */
+function orderForOutput(list: TemplateVariable[]): TemplateVariable[] {
+  const allPositional = list.length > 0 && list.every((v) => v.kind === "positional")
+  if (!allPositional) return list
+  return [...list].sort((a, b) => Number(a.token) - Number(b.token))
+}
+
+/**
  * Extrae las variables de una plantilla (header de texto + body), sin duplicados,
  * en orden de aparición. Adjunta valores de ejemplo de `example` cuando existen.
  */
@@ -36,23 +67,25 @@ export function detectTemplateVariables(t: WhatsappTemplate): TemplateVariable[]
 
   const header = getComponent(t, "HEADER")
   if (header?.format === "TEXT" && header.text) {
-    const examples = header.example?.header_text ?? []
+    const positional = header.example?.header_text ?? []
+    const named = header.example?.header_text_named_params
     findTokens(header.text).forEach((v, i) => {
       const key = `header:${v.token}`
       if (seen.has(key)) return
       seen.add(key)
-      vars.push({ ...v, key, component: "header", example: examples[i] })
+      vars.push({ ...v, key, component: "header", example: pickExample(v.token, v.kind, i, positional, named) })
     })
   }
 
   const body = getComponent(t, "BODY")
   if (body?.text) {
-    const examples = body.example?.body_text?.[0] ?? []
+    const positional = body.example?.body_text?.[0] ?? []
+    const named = body.example?.body_text_named_params
     findTokens(body.text).forEach((v, i) => {
       const key = `body:${v.token}`
       if (seen.has(key)) return
       seen.add(key)
-      vars.push({ ...v, key, component: "body", example: examples[i] })
+      vars.push({ ...v, key, component: "body", example: pickExample(v.token, v.kind, i, positional, named) })
     })
   }
 
@@ -139,12 +172,12 @@ export function buildComponents(
 
   const headerVars = vars.filter((v) => v.component === "header")
   if (headerVars.length) {
-    components.push({ type: "header", parameters: headerVars.map((v) => paramFor(v)) })
+    components.push({ type: "header", parameters: orderForOutput(headerVars).map((v) => paramFor(v)) })
   }
 
   const bodyVars = vars.filter((v) => v.component === "body")
   if (bodyVars.length) {
-    components.push({ type: "body", parameters: bodyVars.map((v) => paramFor(v)) })
+    components.push({ type: "body", parameters: orderForOutput(bodyVars).map((v) => paramFor(v)) })
   }
 
   // Un componente "button" (sub_type url) por cada botón con variables, en orden.
@@ -160,7 +193,7 @@ export function buildComponents(
       type: "button",
       sub_type: "url",
       index: idx,
-      parameters: byIndex.get(idx)!.map((v) => paramFor(v, false)),
+      parameters: orderForOutput(byIndex.get(idx)!).map((v) => paramFor(v, false)),
     })
   }
 

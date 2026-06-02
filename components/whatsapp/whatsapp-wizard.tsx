@@ -109,16 +109,18 @@ export function WhatsappWizard() {
 
       {step === 4 && result && <StepResults result={result} onReset={reset} />}
 
-      {/* Nav */}
-      {step < 3 && (
+      {/* Nav (incl. paso de revisión, para poder volver y corregir) */}
+      {step <= 3 && (
         <div className="row" style={{ gap: 10, marginTop: 24, justifyContent: "space-between" }}>
           <button className="btn" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} style={{ opacity: step === 0 ? 0.4 : 1 }}>
             <Icon name="arrowLeft" size={13} /> Atrás
           </button>
           {data && sourceName && step === 0 && <span className="muted-3" style={{ fontSize: 12, alignSelf: "center" }}>{sourceName}</span>}
-          <button className="btn btn-accent" onClick={() => setStep((s) => s + 1)} disabled={!canNext} style={{ opacity: canNext ? 1 : 0.5, background: "#25D366", color: "#fff", borderColor: "#25D366" }}>
-            Continuar <Icon name="arrowRight" size={13} />
-          </button>
+          {step < 3 && (
+            <button className="btn btn-accent" onClick={() => setStep((s) => s + 1)} disabled={!canNext} style={{ opacity: canNext ? 1 : 0.5, background: "#25D366", color: "#fff", borderColor: "#25D366" }}>
+              Continuar <Icon name="arrowRight" size={13} />
+            </button>
+          )}
         </div>
       )}
     </div>

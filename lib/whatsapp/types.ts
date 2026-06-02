@@ -34,6 +34,9 @@ export type TemplateComponent = {
   example?: {
     body_text?: string[][]
     header_text?: string[]
+    /** Ejemplos para plantillas con parámetros NOMBRADOS ({{nombre}}). */
+    body_text_named_params?: { param_name: string; example: string }[]
+    header_text_named_params?: { param_name: string; example: string }[]
     [k: string]: unknown
   }
   buttons?: TemplateButton[]
