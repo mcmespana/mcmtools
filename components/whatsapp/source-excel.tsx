@@ -8,9 +8,28 @@ import type { DataSourceResult, SourceColumn } from "@/lib/whatsapp/types"
 
 const ACCENT = "#25D366"
 
+// Decodifica los bytes de un CSV respetando la codificación:
+// 1) BOM UTF-8 → UTF-8; 2) UTF-8 estricto; 3) si falla, Windows-1252 (ANSI,
+// típico de exportaciones de Excel en español). Así € y acentos se leen bien.
+function decodeCsv(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder("utf-8").decode(bytes.subarray(3))
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes)
+  }
+}
+
 // Parsea un XLSX/CSV: fila 1 = cabeceras, datos desde la fila 2.
-function parseSheet(buf: ArrayBuffer): DataSourceResult {
-  const wb = XLSX.read(buf, { type: "array" })
+function parseSheet(buf: ArrayBuffer, name: string): DataSourceResult {
+  // Los CSV los decodificamos nosotros (UTF-8/1252) y los pasamos como string;
+  // SheetJS auto-detecta el separador (coma, punto y coma, tab).
+  const wb = /\.csv$/i.test(name)
+    ? XLSX.read(decodeCsv(buf), { type: "string", raw: true })
+    : XLSX.read(buf, { type: "array" })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const matrix = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: false, defval: "" })
   if (!matrix.length) return { columns: [], rows: [] }
@@ -45,7 +64,7 @@ export function SourceExcel({ onLoaded }: { onLoaded: (data: DataSourceResult, n
     setError(null)
     try {
       const buf = await file.arrayBuffer()
-      const data = parseSheet(buf)
+      const data = parseSheet(buf, file.name)
       if (!data.columns.length) {
         setError("El archivo no tiene cabeceras en la primera fila.")
         return
