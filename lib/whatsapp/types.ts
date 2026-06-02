@@ -15,6 +15,17 @@ export type DataSourceResult = {
 
 export type SourceKind = "excel" | "sinergia"
 
+/** Un botón de una plantilla de KAPSO/Meta. */
+export type TemplateButton = {
+  type: "URL" | "QUICK_REPLY" | "PHONE_NUMBER" | "COPY_CODE" | "FLOW" | string
+  text?: string
+  /** URL del botón (puede contener {{1}} para la parte dinámica). */
+  url?: string
+  phone_number?: string
+  /** Ejemplos de URL completa (Meta los devuelve como array). */
+  example?: string[]
+}
+
 /** Componente de una plantilla de KAPSO/Meta. */
 export type TemplateComponent = {
   type: "HEADER" | "BODY" | "FOOTER" | "BUTTONS" | string
@@ -25,7 +36,7 @@ export type TemplateComponent = {
     header_text?: string[]
     [k: string]: unknown
   }
-  buttons?: unknown[]
+  buttons?: TemplateButton[]
 }
 
 /** Plantilla de mensaje tal y como la devuelve KAPSO. */
@@ -44,14 +55,24 @@ export type WhatsappTemplate = {
  * - `named`      → placeholder {{nombre}} (token = "nombre")
  */
 export type TemplateVariable = {
+  /**
+   * Clave única de la variable (para el mapeo). Combina componente y token,
+   * p.ej. "body:1", "header:nombre", "button:0:1". Evita colisiones entre
+   * un {{1}} del cuerpo y un {{1}} de un botón.
+   */
+  key: string
   /** Token tal cual aparece dentro de las llaves: "1", "nombre"… */
   token: string
-  /** Componente donde aparece. v1 soporta header (texto) y body. */
-  component: "header" | "body"
+  /** Componente donde aparece. Soporta header (texto), body y botón URL. */
+  component: "header" | "body" | "button"
   /** Estilo de la variable. */
   kind: "positional" | "named"
   /** Valor de ejemplo de la plantilla, si lo hay. */
   example?: string
+  /** Índice del botón (0-based) cuando component = "button". */
+  buttonIndex?: number
+  /** Texto del botón (para mostrar en la UI) cuando component = "button". */
+  buttonLabel?: string
 }
 
 /** Cómo se rellena cada variable de la plantilla. */
@@ -85,6 +106,15 @@ export type SendResponse = {
   invalid: { row: number; reason: string }[]
 }
 
+/** Un botón tal como se muestra en la UI (vista previa). */
+export type TemplateButtonInfo = {
+  index: number
+  type: string
+  text: string
+  /** URL con su parte dinámica ({{1}}) si la tiene. */
+  url?: string
+}
+
 /** Plantilla tal como la sirve GET /api/whatsapp/templates (con variables ya detectadas). */
 export type TemplateInfo = {
   id: string
@@ -95,4 +125,5 @@ export type TemplateInfo = {
   headerText: string | null
   bodyText: string
   variables: TemplateVariable[]
+  buttons: TemplateButtonInfo[]
 }

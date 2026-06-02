@@ -45,7 +45,7 @@ export function WhatsappWizard() {
 
   const mappingComplete = template
     ? template.variables.every((v) => {
-        const m = mapping[v.token]
+        const m = mapping[v.key]
         return m && (m.source === "static" ? (m.value ?? "").trim() !== "" : !!m.columnKey)
       })
     : false

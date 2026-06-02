@@ -22,10 +22,18 @@ export function StepMapping({
   phoneColumnKey: string
   setPhoneColumnKey: (k: string) => void
 }) {
-  const setVar = (token: string, patch: Partial<VariableMapping>) =>
-    setMapping({ ...mapping, [token]: { ...(mapping[token] ?? { source: "column" }), ...patch } })
+  const setVar = (key: string, patch: Partial<VariableMapping>) =>
+    setMapping({ ...mapping, [key]: { ...(mapping[key] ?? { source: "column" }), ...patch } })
 
   const firstRow = data.rows[0] ?? {}
+
+  const componentLabel = (c: "header" | "body" | "button") =>
+    c === "header" ? "encabezado" : c === "button" ? "botón" : "cuerpo"
+
+  // Botones con variables a previsualizar (URL dinámica resuelta con la 1ª fila).
+  const buttonsWithVars = template.buttons.filter(
+    (b) => b.url && template.variables.some((v) => v.component === "button" && v.buttonIndex === b.index),
+  )
 
   return (
     <div className="col" style={{ gap: 16 }}>
@@ -54,29 +62,32 @@ export function StepMapping({
           <div className="t-kicker" style={{ marginBottom: 12 }}>Mapeo de variables</div>
           <div className="col" style={{ gap: 14 }}>
             {template.variables.map((v) => {
-              const map = mapping[v.token] ?? { source: "column" as const }
+              const map = mapping[v.key] ?? { source: "column" as const }
               return (
-                <div key={`${v.component}:${v.token}`} className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <div key={v.key} className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ background: `${ACCENT}30`, borderRadius: 6, padding: "2px 8px", fontWeight: 600, fontSize: 13, minWidth: 70, textAlign: "center" }}>
                     {`{{${v.token}}}`}
                   </span>
-                  <span className="muted-3" style={{ fontSize: 11 }}>{v.component === "header" ? "encabezado" : "cuerpo"}</span>
+                  <span className="muted-3" style={{ fontSize: 11 }}>
+                    {componentLabel(v.component)}
+                    {v.component === "button" && v.buttonLabel ? ` · ${v.buttonLabel}` : ""}
+                  </span>
                   <select
                     className="input"
                     style={{ width: 130 }}
                     value={map.source}
-                    onChange={(e) => setVar(v.token, { source: e.target.value as "column" | "static" })}
+                    onChange={(e) => setVar(v.key, { source: e.target.value as "column" | "static" })}
                   >
                     <option value="column">Columna</option>
                     <option value="static">Texto fijo</option>
                   </select>
                   {map.source === "column" ? (
-                    <select className="input" style={{ flex: "1 1 220px" }} value={map.columnKey ?? ""} onChange={(e) => setVar(v.token, { columnKey: e.target.value })}>
+                    <select className="input" style={{ flex: "1 1 220px" }} value={map.columnKey ?? ""} onChange={(e) => setVar(v.key, { columnKey: e.target.value })}>
                       <option value="" disabled>Elige columna…</option>
                       {data.columns.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                     </select>
                   ) : (
-                    <input className="input" style={{ flex: "1 1 220px" }} placeholder={v.example || "Valor fijo"} value={map.value ?? ""} onChange={(e) => setVar(v.token, { value: e.target.value })} />
+                    <input className="input" style={{ flex: "1 1 220px" }} placeholder={v.example || "Valor fijo"} value={map.value ?? ""} onChange={(e) => setVar(v.key, { value: e.target.value })} />
                   )}
                 </div>
               )
@@ -90,12 +101,25 @@ export function StepMapping({
         <div className="t-kicker" style={{ marginBottom: 8 }}>Vista previa (primera fila)</div>
         {template.headerText && (
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>
-            {buildBodyPreview(template.headerText, template, mapping, firstRow)}
+            {buildBodyPreview(template.headerText, "header", template, mapping, firstRow)}
           </div>
         )}
         <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-          {buildBodyPreview(template.bodyText, template, mapping, firstRow)}
+          {buildBodyPreview(template.bodyText, "body", template, mapping, firstRow)}
         </div>
+        {buttonsWithVars.length > 0 && (
+          <div className="col" style={{ gap: 6, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+            {buttonsWithVars.map((b) => (
+              <div key={b.index} className="row" style={{ gap: 8, fontSize: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <Icon name="globe" size={13} style={{ color: ACCENT }} />
+                <span style={{ fontWeight: 600 }}>{b.text}</span>
+                <span className="muted-3" style={{ wordBreak: "break-all" }}>
+                  → {buildBodyPreview(b.url ?? "", "button", template, mapping, firstRow, b.index)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Bento>
     </div>
   )
