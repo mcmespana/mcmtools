@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { listTemplates } from "@/lib/whatsapp/kapso"
-import { detectTemplateVariables, getBodyText, getHeaderText } from "@/lib/whatsapp/template-vars"
+import { detectTemplateVariables, getBodyText, getButtons, getHeaderText } from "@/lib/whatsapp/template-vars"
 
 export const dynamic = "force-dynamic"
 
@@ -17,6 +17,7 @@ export async function GET() {
       headerText: getHeaderText(t),
       bodyText: getBodyText(t),
       variables: detectTemplateVariables(t),
+      buttons: getButtons(t),
     }))
     return NextResponse.json({ templates: result })
   } catch (e) {

@@ -57,6 +57,24 @@ export function StepTemplate({
               <div className="col" style={{ gap: 8, marginTop: 14 }}>
                 {t.headerText && <PreviewLine label="Encabezado" text={t.headerText} />}
                 <PreviewLine label="Mensaje" text={t.bodyText} />
+                {t.buttons.length > 0 && (
+                  <div>
+                    <div className="t-kicker" style={{ marginBottom: 4 }}>Botones</div>
+                    <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                      {t.buttons.map((b) => (
+                        <span key={b.index} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                          {b.type === "URL" && <Icon name="globe" size={11} />}
+                          {b.text || b.type}
+                          {b.url && /\{\{[^}]+\}\}/.test(b.url) && (
+                            <span style={{ background: `${ACCENT}30`, borderRadius: 4, padding: "0 4px", fontWeight: 600, fontSize: 11 }}>
+                              URL dinámica
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </Bento>
