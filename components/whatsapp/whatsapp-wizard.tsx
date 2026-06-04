@@ -14,6 +14,58 @@ import type { DataSourceResult, SendResponse, SourceKind, TemplateInfo, Variable
 
 const ACCENT = "#25D366"
 const STEPS = ["Fuente", "Plantilla", "Variables", "Revisar", "Resultado"] as const
+const SESSION_KEY = "whatsapp_unlocked"
+
+function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
+  const router = useRouter()
+  const [value, setValue] = useState("")
+  const [error, setError] = useState(false)
+
+  const submit = () => {
+    if (value === "coco") {
+      sessionStorage.setItem(SESSION_KEY, "1")
+      onUnlock()
+    } else {
+      setError(true)
+      setValue("")
+    }
+  }
+
+  return (
+    <div className="page" style={{ padding: "32px 40px", maxWidth: 900, margin: "0 auto" }}>
+      <button className="btn btn-ghost" onClick={() => router.push("/")} style={{ padding: "6px 10px", fontSize: 12, marginBottom: 16 }}>
+        <Icon name="arrowLeft" size={13} /> Volver
+      </button>
+      <div className="col" style={{ alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 24 }}>
+        <div style={{ width: 64, height: 64, borderRadius: 20, background: ACCENT, color: "#fff", display: "grid", placeItems: "center" }}>
+          <Icon name="whatsapp" size={30} />
+        </div>
+        <div className="col" style={{ alignItems: "center", gap: 6 }}>
+          <h2 className="t-display" style={{ margin: 0, fontSize: 26 }}>WhatsApp MCM</h2>
+          <p className="muted" style={{ margin: 0, fontSize: 14 }}>Introduce la contraseña para continuar</p>
+        </div>
+        <Bento style={{ padding: 28, width: "100%", maxWidth: 340 }}>
+          <div className="col" style={{ gap: 14 }}>
+            <input
+              type="password"
+              className="input"
+              placeholder="Contraseña"
+              value={value}
+              autoFocus
+              onChange={(e) => { setValue(e.target.value); setError(false) }}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              style={{ borderColor: error ? "var(--error, #e53e3e)" : undefined }}
+            />
+            {error && <p style={{ margin: 0, fontSize: 12, color: "var(--error, #e53e3e)" }}>Contraseña incorrecta</p>}
+            <button className="btn btn-accent" onClick={submit} style={{ background: ACCENT, color: "#fff", borderColor: ACCENT }}>
+              Entrar
+            </button>
+          </div>
+        </Bento>
+      </div>
+    </div>
+  )
+}
 
 function guessPhoneColumn(data: DataSourceResult, kind: SourceKind): string {
   if (kind === "sinergia") return "phone_mobile"
@@ -23,6 +75,9 @@ function guessPhoneColumn(data: DataSourceResult, kind: SourceKind): string {
 
 export function WhatsappWizard() {
   const router = useRouter()
+  const [unlocked, setUnlocked] = useState(() =>
+    typeof window !== "undefined" && sessionStorage.getItem(SESSION_KEY) === "1"
+  )
   const [step, setStep] = useState(0)
   const [sourceKind, setSourceKind] = useState<SourceKind | null>(null)
   const [data, setData] = useState<DataSourceResult | null>(null)
@@ -55,6 +110,8 @@ export function WhatsappWizard() {
     step === 1 ? !!template :
     step === 2 ? !!phoneColumnKey && mappingComplete :
     false
+
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />
 
   return (
     <div className="page" style={{ padding: "32px 40px 80px", maxWidth: 900, margin: "0 auto" }}>
