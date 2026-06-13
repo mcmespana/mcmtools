@@ -4,3 +4,4 @@ openai
 azure-storage-blob
 pdfplumber
 pymupdf
+yt_dlp
